@@ -5,29 +5,28 @@
 #include <stddef.h> // For size_t
 #include <stdint.h> // For uint8_t
 #include <time.h>   // For time_t
-#include "../../config/blockchain_config.h" // For MAX_ID_LENGTH, etc.
-#include "../security/encryption.h" // Include for AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE
+#include "config/blockchain_config.h" // For MAX_ID_LENGTH, etc.
+#include "security/encryption.h" // Include for AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE
 
-// Forward declaration to avoid circular dependency with crypto/hasher.h
-// The actual hash size is defined in crypto/hasher.h, which will be included by block.h
-// For transaction_id, we'll use a fixed size (SHA256_HEX_LEN from hasher.h)
-#define MAX_TRANSACTION_ID_LENGTH SHA256_HEX_LEN // From crypto/hasher.h, assuming SHA256_HEX_LEN is defined
+// The actual hash size (SHA256_HEX_LEN) is typically defined in crypto/hasher.h
+// or a shared config. Assuming SHA256_HEX_LEN is accessible via blockchain_config.h
+#define MAX_TRANSACTION_ID_LENGTH SHA256_HEX_LEN
 
 // --- Transaction Structure ---
 typedef struct Transaction {
     char transaction_id[MAX_TRANSACTION_ID_LENGTH + 1]; // Unique hash of transaction data
-    char sender_id[MAX_ID_LENGTH + 1];                   // Public key / identifier of sender
-    char recipient_id[MAX_ID_LENGTH + 1];                // Public key / identifier of recipient
+    char sender_id[MAX_ID_LENGTH + 1];                  // Public key / identifier of sender
+    char recipient_id[MAX_ID_LENGTH + 1];              // Public key / identifier of recipient
 
-    uint8_t* encrypted_medical_data;                     // Dynamically allocated encrypted data (ciphertext)
-    int encrypted_medical_data_len;                      // Length of the encrypted data
+    uint8_t* encrypted_medical_data;                    // Dynamically allocated encrypted data (ciphertext)
+    int encrypted_medical_data_len;                     // Length of the encrypted data
 
-    uint8_t iv[AES_GCM_IV_SIZE];                         // Initialization Vector for AES-GCM
-    uint8_t tag[AES_GCM_TAG_SIZE];                       // Authentication Tag for AES-GCM
+    uint8_t iv[AES_GCM_IV_SIZE];                       // Initialization Vector for AES-GCM
+    uint8_t tag[AES_GCM_TAG_SIZE];                     // Authentication Tag for AES-GCM
 
-    char signature[MAX_SIGNATURE_LENGTH + 1];           // Digital signature of the transaction content
-    time_t timestamp;                                    // Time of transaction creation
-    double value;                                        // Arbitrary value/fee for transaction (e.g., associated cost, or 0)
+    char signature[MAX_SIGNATURE_LENGTH + 1];          // Digital signature of the transaction content
+    time_t timestamp;                                   // Time of transaction creation
+    double value;                                       // Arbitrary value/fee for transaction (e.g., associated cost, or 0)
 } Transaction;
 
 /**
@@ -93,6 +92,5 @@ int transaction_calculate_hash(const Transaction* tx, char* output_hash);
  * The caller is responsible for freeing this string.
  */
 char* transaction_decrypt_medical_data(const Transaction* tx, const uint8_t encryption_key[AES_256_KEY_SIZE]);
-
 
 #endif // TRANSACTION_H
