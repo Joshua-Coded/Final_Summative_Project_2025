@@ -28,11 +28,11 @@ CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
 
 # Include paths for all source files (essential for finding headers like "utils/logger.h")
 # We'll use pkg-config for OpenSSL includes
-CFLAGS_INCLUDE = -I$(SRC_DIR) $(shell pkg-config --cflags libcrypto)
+CFLAGS_INCLUDE = -I$(SRC_DIR) -I$(CONFIG_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
 
 # Libraries
 # Use pkg-config for OpenSSL library paths and names
-LIBS = $(shell pkg-config --libs libcrypto) -lm -lpthread -lcunit
+LIBS = $(shell pkg-config --libs libcrypto) -lm -lpthread -lcunit $(shell pkg-config --libs json-c)
 
 # Linker flags for security hardening (relro, now)
 LDFLAGS_SECURITY = -Wl,-z,relro,-z,now
