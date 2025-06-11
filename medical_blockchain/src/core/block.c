@@ -1,92 +1,186 @@
 // src/core/block.c
 #include "block.h"
-#include "../crypto/sha256.h" // Include SHA256 for hashing
+#include "../crypto/hasher.h" // For SHA256_HEX_LEN and hashing functions
+#include "../utils/logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h> // For time()
+#include <time.h>
 
 /**
  * @brief Creates a new block.
- * @param index The index of the block.
- * @param previous_hash The hash of the previous block.
- * @param data The data to be stored in the block.
- * @param nonce The nonce for the block.
- * @return A pointer to the newly created Block structure, or NULL on failure.
+ * @param index The index of the block in the blockchain.
+ * @param prev_hash The hash of the previous block.
+ * @param nonce The nonce for the Proof-of-Work.
+ * @return A pointer to the newly created Block on success, NULL on failure.
+ * The caller is responsible for freeing the block using block_destroy.
  */
-Block* block_create(uint32_t index, const char* previous_hash, const char* data, uint32_t nonce) {
-    Block* new_block = (Block*)malloc(sizeof(Block));
-    if (new_block == NULL) {
-        perror("Failed to allocate memory for Block");
+Block* block_create(unsigned int index, const char* prev_hash, unsigned int nonce) {
+    if (prev_hash == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for block_create: prev_hash is NULL.");
         return NULL;
     }
 
-    new_block->index = index;
-    new_block->timestamp = time(NULL); // Current time
-    strncpy(new_block->previous_hash, previous_hash, MAX_PREVIOUS_HASH_LENGTH - 1);
-    new_block->previous_hash[MAX_PREVIOUS_HASH_LENGTH - 1] = '\0'; // Ensure null-termination
+    Block* block = (Block*)malloc(sizeof(Block));
+    if (block == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for new block.");
+        return NULL;
+    }
 
-    strncpy(new_block->data, data, MAX_DATA_LENGTH - 1);
-    new_block->data[MAX_DATA_LENGTH - 1] = '\0'; // Ensure null-termination
+    block->index = index;
+    block->timestamp = time(NULL);
+    strncpy(block->prev_hash, prev_hash, SHA256_HEX_LEN);
+    block->prev_hash[SHA256_HEX_LEN] = '\0'; // Ensure null termination
+    block->nonce = nonce;
+    block->transactions = NULL;
+    block->num_transactions = 0;
 
-    new_block->nonce = nonce;
+    // Calculate initial hash (will be re-calculated during mining)
+    if (block_calculate_hash(block, block->hash) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to calculate initial hash for block #%u.", block->index);
+        block_destroy(block);
+        return NULL;
+    }
 
-    // Calculate the initial hash for the block
-    block_calculate_hash(new_block, new_block->hash);
-
-    return new_block;
+    logger_log(LOG_LEVEL_DEBUG, "Block #%u created with prev_hash: %s", block->index, block->prev_hash);
+    return block;
 }
 
 /**
- * @brief Calculates the hash of a block.
- * The hash is calculated based on index, timestamp, previous_hash, data, and nonce.
- * @param block The block for which to calculate the hash.
- * @param output_hash A buffer to store the calculated hash (must be at least 65 bytes).
+ * @brief Destroys a block and frees all its allocated memory, including transactions.
+ * @param block A pointer to the Block to destroy.
  */
-void block_calculate_hash(const Block* block, char* output_hash) {
-    if (block == NULL || output_hash == NULL) {
-        fprintf(stderr, "Error: Invalid block or output_hash for hash calculation.\n");
+void block_destroy(Block* block) {
+    if (block == NULL) {
         return;
     }
 
-    // Concatenate relevant block data into a string for hashing
-    // Make sure this buffer is large enough to hold all concatenated data
-    char block_string[MAX_DATA_LENGTH + MAX_PREVIOUS_HASH_LENGTH + 128]; // Generous size
-    snprintf(block_string, sizeof(block_string), "%u%ld%s%s%u",
-             block->index,
-             (long)block->timestamp, // Cast to long for snprintf
-             block->previous_hash,
-             block->data,
-             block->nonce);
+    // Free each transaction
+    if (block->transactions != NULL) {
+        for (size_t i = 0; i < block->num_transactions; i++) {
+            if (block->transactions[i] != NULL) {
+                transaction_destroy(block->transactions[i]); // Use transaction_destroy to free its internal memory
+            }
+        }
+        free(block->transactions); // Free the array of pointers
+        block->transactions = NULL;
+    }
 
-    sha256_hex_string(block_string, output_hash); // Use the SHA256 utility function
+    free(block);
+    logger_log(LOG_LEVEL_DEBUG, "Block destroyed.");
 }
 
 /**
- * @brief Prints the details of a block.
- * @param block The block to print.
+ * @brief Adds a transaction to a block.
+ * @param block A pointer to the Block to which the transaction will be added.
+ * @param transaction A pointer to the Transaction to add.
+ * @return 0 on success, -1 on failure.
+ */
+int block_add_transaction(Block* block, Transaction* transaction) {
+    if (block == NULL || transaction == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for block_add_transaction.");
+        return -1;
+    }
+
+    // Reallocate memory for the transactions array
+    Transaction** new_transactions = (Transaction**)realloc(block->transactions, (block->num_transactions + 1) * sizeof(Transaction*));
+    if (new_transactions == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to reallocate memory for transactions in Block #%u.", block->index);
+        return -1;
+    }
+
+    block->transactions = new_transactions;
+    block->transactions[block->num_transactions] = transaction; // Add the new transaction
+    block->num_transactions++;
+
+    logger_log(LOG_LEVEL_DEBUG, "Transaction %s added to Block #%u. Total transactions: %zu",
+               transaction->transaction_id, block->index, block->num_transactions);
+    return 0;
+}
+
+/**
+ * @brief Calculates the SHA256 hash of a block.
+ * The hash includes all block metadata and a "simplified merkle root" of transactions.
+ * For simplicity, we concatenate all transaction hashes. A real Merkle tree is more complex.
+ * @param block A pointer to the Block.
+ * @param output_hash A buffer to store the resulting SHA256 hash (SHA256_HEX_LEN + 1 bytes).
+ * @return 0 on success, -1 on failure.
+ */
+int block_calculate_hash(const Block* block, char* output_hash) {
+    if (block == NULL || output_hash == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for block_calculate_hash.");
+        return -1;
+    }
+
+    // Merkle root placeholder: concatenate all transaction hashes
+    // For a real system, a Merkle tree would be constructed.
+    char transactions_hash_concat[MAX_TRANSACTIONS_PER_BLOCK * (SHA256_HEX_LEN + 1) + 1];
+    transactions_hash_concat[0] = '\0'; // Initialize empty string
+
+    for (size_t i = 0; i < block->num_transactions; i++) {
+        if (block->transactions[i] == NULL) {
+            logger_log(LOG_LEVEL_ERROR, "NULL transaction found in block #%u during hash calculation.", block->index);
+            return -1;
+        }
+        char tx_hash[SHA256_HEX_LEN + 1];
+        if (transaction_calculate_hash(block->transactions[i], tx_hash) != 0) {
+            logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for transaction %zu in block #%u.", i, block->index);
+            return -1;
+        }
+        strncat(transactions_hash_concat, tx_hash, sizeof(transactions_hash_concat) - strlen(transactions_hash_concat) - 1);
+    }
+
+    // Combine all block data into a single string for hashing
+    // Index + Timestamp + Prev Hash + Nonce + Merkle Root (simplified)
+    size_t buffer_len = 256 + strlen(transactions_hash_concat); // Ample buffer
+    char* data_to_hash = (char*)malloc(buffer_len);
+    if (data_to_hash == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for block hashing.");
+        return -1;
+    }
+
+    snprintf(data_to_hash, buffer_len, "%u%ld%s%u%s",
+             block->index, (long)block->timestamp, block->prev_hash,
+             block->nonce, transactions_hash_concat);
+
+    if (hasher_sha256((const uint8_t*)data_to_hash, strlen(data_to_hash), output_hash) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "SHA256 hashing failed for block.");
+        free(data_to_hash);
+        return -1;
+    }
+
+    free(data_to_hash);
+    return 0;
+}
+
+/**
+ * @brief Prints the details of a block. (Original, doesn't handle decryption)
+ * @param block A pointer to the Block to print.
  */
 void block_print(const Block* block) {
+    // This function will now default to not decrypting, for backward compatibility
+    // or if a key is not explicitly provided.
+    block_print_with_decryption(block, NULL);
+}
+
+/**
+ * @brief Prints the details of a block, attempting to decrypt medical data.
+ * @param block A pointer to the Block to print.
+ * @param encryption_key The AES encryption key (32 bytes for AES-256) for decrypting medical data, or NULL if not available.
+ */
+void block_print_with_decryption(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]) {
     if (block == NULL) {
-        printf("Block is NULL.\n");
+        printf("NULL Block\n");
         return;
     }
     printf("Block #%u\n", block->index);
-    printf("  Timestamp: %ld\n", (long)block->timestamp);
-    printf("  Previous Hash: %s\n", block->previous_hash);
+    printf("  Timestamp: %ld (%s)", (long)block->timestamp, ctime(&block->timestamp)); // ctime adds newline
+    printf("  Previous Hash: %s\n", block->prev_hash);
     printf("  Hash: %s\n", block->hash);
-    printf("  Data: %s\n", block->data);
     printf("  Nonce: %u\n", block->nonce);
-}
-
-/**
- * @brief Frees the memory allocated for a block.
- * @param block The block to free.
- */
-void block_destroy(Block* block) {
-    if (block != NULL) {
-        // If 'data' or 'transactions' were dynamically allocated inside the Block struct,
-        // they would need to be freed here. For now, they are fixed-size arrays.
-        free(block);
+    printf("  Transactions (%zu):\n", block->num_transactions);
+    for (size_t i = 0; i < block->num_transactions; i++) {
+        printf("    Transaction %zu:\n", i + 1);
+        transaction_print(block->transactions[i], encryption_key); // Pass the key to transaction_print
     }
 }
