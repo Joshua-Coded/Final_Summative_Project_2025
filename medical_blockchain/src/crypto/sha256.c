@@ -23,12 +23,19 @@ void sha256(const uint8_t *data, size_t len, uint8_t *output_hash) {
     SHA256(data, len, output_hash);
 }
 
-// Helper to convert byte array to hex string
-static void bytes_to_hex(const uint8_t *bytes, size_t len, char *hex_string) {
+/**
+ * @brief Converts a raw byte array to its hexadecimal string representation.
+ * This function was previously named `bytes_to_hex` and made static.
+ * It has been updated to match the public declaration in sha256.h.
+ * @param bytes The input byte array.
+ * @param len The length of the input byte array.
+ * @param hex_string_output A buffer to store the hexadecimal string. Must be at least (len * 2 + 1) bytes.
+ */
+void bytes_to_hex_string(const uint8_t *bytes, size_t len, char *hex_string_output) {
     for (size_t i = 0; i < len; i++) {
-        sprintf(&hex_string[i * 2], "%02x", bytes[i]);
+        sprintf(&hex_string_output[i * 2], "%02x", bytes[i]);
     }
-    hex_string[len * 2] = '\0';
+    hex_string_output[len * 2] = '\0'; // Null-terminate
 }
 
 /**
@@ -42,7 +49,7 @@ void sha256_hex_string(const char *input_string, char *output_hex_string) {
         return;
     }
 
-    uint8_t hash_bytes[SHA256_DIGEST_LENGTH]; // Use the OpenSSL-defined digest length
+    uint8_t hash_bytes[SHA256_DIGEST_LENGTH];
     sha256((const uint8_t*)input_string, strlen(input_string), hash_bytes);
-    bytes_to_hex(hash_bytes, SHA256_DIGEST_LENGTH, output_hex_string);
+    bytes_to_hex_string(hash_bytes, SHA256_DIGEST_LENGTH, output_hex_string); // Call the new public function
 }

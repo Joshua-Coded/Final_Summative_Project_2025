@@ -65,7 +65,8 @@ int main() {
     }
 
     // --- Demonstrate adding a new block with transactions (only if the chain is fresh or short) ---
-    Block* last_block = &medical_blockchain->chain[medical_blockchain->length - 1]; // Always get the current last block
+    // Fix 1: Removed '&' operator. medical_blockchain->chain[index] already returns Block*
+    Block* last_block = medical_blockchain->chain[medical_blockchain->length - 1]; // Always get the current last block
 
     // Use medical_record_create_json to construct medical data
     char* medical_data_json_1 = medical_record_create_json(
@@ -123,11 +124,10 @@ int main() {
         }
 
 
-        // Create a new block (initially with nonce 0)
+        // Fix 2: Removed the extra '0' argument from block_create
         Block* new_record_block = block_create(
             medical_blockchain->length, // Index of the new block
-            last_block->hash,           // Hash of the previous block
-            0                           // Initial nonce for mining
+            last_block->hash            // Hash of the previous block
         );
 
         if (new_record_block != NULL) {
@@ -177,7 +177,8 @@ int main() {
     // --- Print all blocks in the blockchain ---
     printf("\n--- Current Blockchain State (Medical Data Decrypted) ---\n");
     for (size_t i = 0; i < medical_blockchain->length; i++) {
-        block_print_with_decryption(&medical_blockchain->chain[i], g_encryption_key);
+        // Fix 3: block_print_with_decryption now has its prototype in block.h
+        block_print_with_decryption(medical_blockchain->chain[i], g_encryption_key); // Pass Block* directly
         printf("--------------------------------\n");
     }
 

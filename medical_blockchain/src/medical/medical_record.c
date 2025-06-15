@@ -1,6 +1,6 @@
 // src/medical/medical_record.c
 #include "medical_record.h"
-#include "../utils/logger.h"
+#include "utils/logger.h"
 #include <json-c/json.h> // json-c library
 #include <stdlib.h>
 #include <string.h>
@@ -213,8 +213,9 @@ MedicalRecord** medical_record_search_by_patient(
     size_t current_count = 0;
 
     for (size_t i = 0; i < blockchain->length; i++) {
-        const Block* block = &blockchain->chain[i];
+        const Block* block = blockchain->chain[i];
         for (size_t j = 0; j < block->num_transactions; j++) {
+            // FIX IS HERE: take the address of the transaction struct
             const Transaction* tx = block->transactions[j];
 
             // Only decrypt if it's a relevant transaction (e.g., recipient_id or sender_id matches patient_id)

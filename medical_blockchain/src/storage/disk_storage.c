@@ -2,6 +2,7 @@
 #include "disk_storage.h"
 #include "../utils/logger.h"
 #include "../core/transaction.h" // Needed for AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE
+#include "../core/blockchain.h" // Needed for blockchain_destroy
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,20 +11,22 @@
 
 // Helper to write a string/binary buffer (length + data) to file
 // This is used for dynamically allocated char* or uint8_t*
-static int write_buffer(FILE* fp, const uint8_t* buffer, int len) {
-    if (fwrite(&len, sizeof(int), 1, fp) != 1) return -1;
+// Changed len parameter type to size_t and fwrite size to sizeof(size_t)
+static int write_buffer(FILE* fp, const uint8_t* buffer, size_t len) {
+    if (fwrite(&len, sizeof(size_t), 1, fp) != 1) return -1;
     if (len > 0) {
-        if (fwrite(buffer, sizeof(uint8_t), len, fp) != (size_t)len) return -1;
+        if (fwrite(buffer, sizeof(uint8_t), len, fp) != len) return -1; // Removed redundant (size_t) cast
     }
     return 0;
 }
 
 // Helper to read a string/binary buffer (length + data) from file
 // Returns a dynamically allocated buffer. Caller must free.
-static uint8_t* read_buffer(FILE* fp, int* len_out) {
-    int len;
-    if (fread(&len, sizeof(int), 1, fp) != 1) {
-        *len_out = -1; // Indicate read error
+// Changed len_out parameter type to size_t* and fread size to sizeof(size_t)
+static uint8_t* read_buffer(FILE* fp, size_t* len_out) { // Changed int* to size_t*
+    size_t len; // Changed int to size_t
+    if (fread(&len, sizeof(size_t), 1, fp) != 1) { // Changed sizeof(int) to sizeof(size_t)
+        *len_out = (size_t)-1; // Indicate read error, cast -1 to size_t
         return NULL;
     }
 
@@ -32,13 +35,13 @@ static uint8_t* read_buffer(FILE* fp, int* len_out) {
 
     uint8_t* buffer = (uint8_t*)malloc(len);
     if (buffer == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for read buffer of size %d.", len);
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for read buffer of size %zu.", len); // Used %zu for size_t
         return NULL;
     }
 
-    if (fread(buffer, sizeof(uint8_t), len, fp) != (size_t)len) {
+    if (fread(buffer, sizeof(uint8_t), len, fp) != len) { // Removed redundant (size_t) cast
         free(buffer);
-        *len_out = -1; // Indicate read error
+        *len_out = (size_t)-1; // Indicate read error, cast -1 to size_t
         return NULL;
     }
     return buffer;
@@ -139,9 +142,15 @@ int disk_storage_save_blockchain(const Blockchain* blockchain, const char* filen
         return -1;
     }
 
+    // Use temporary variables for the error log to ensure they are in scope
+    size_t current_block_index = 0;
+    size_t current_tx_index = 0;
+
     // Write each block
     for (size_t i = 0; i < blockchain->length; i++) {
-        const Block* block = &blockchain->chain[i];
+        // FIX: Removed & - blockchain->chain[i] is already a Block*
+        const Block* block = blockchain->chain[i];
+        current_block_index = block->index; // Update for error logging
 
         // Serialize Block fields manually
         if (fwrite(&block->index, sizeof(block->index), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to write block index."); goto fail_save; }
@@ -153,6 +162,8 @@ int disk_storage_save_blockchain(const Blockchain* blockchain, const char* filen
 
         // Write each transaction
         for (size_t j = 0; j < block->num_transactions; j++) {
+            current_tx_index = j; // Update for error logging
+            // FIX: block->transactions[j] is already a Transaction*
             const Transaction* tx = block->transactions[j];
 
             // Serialize Transaction fields manually, including variable-length strings
@@ -179,7 +190,8 @@ int disk_storage_save_blockchain(const Blockchain* blockchain, const char* filen
     return 0;
 
 fail_save:
-    logger_log(LOG_LEVEL_ERROR, "Critical error during blockchain save (Block #%u, Transaction #%zu).", (block ? block->index : 0), (tx ? j : 0));
+    // Use the temporary variables here which are always in scope at this point
+    logger_log(LOG_LEVEL_ERROR, "Critical error during blockchain save (Block #%zu, Transaction #%zu).", current_block_index, current_tx_index);
     fclose(fp);
     return -1;
 }
@@ -222,16 +234,37 @@ Blockchain* disk_storage_load_blockchain(const char* filename) {
     }
     blockchain->length = loaded_length;
 
-    // Allocate memory for chain array
-    blockchain->chain = (Block*)malloc(blockchain->length * sizeof(Block));
+    // Allocate memory for chain array of Block POINTERS, not Block structs
+    // FIX: Changed sizeof(Block) to sizeof(Block*) and cast to Block**
+    blockchain->chain = (Block**)malloc(blockchain->length * sizeof(Block*));
     if (blockchain->chain == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for blockchain chain array.");
         goto fail_load;
     }
 
+    // Temporary variables for error logging in load function
+    size_t current_load_block_idx = 0;
+    size_t current_load_tx_idx = 0;
+    Block* current_block_ptr = NULL; // Keep a pointer to the current block being processed
+
     // Read each block
     for (size_t i = 0; i < blockchain->length; i++) {
-        Block* block = &blockchain->chain[i];
+        // FIX: Removed & - blockchain->chain[i] needs to be assigned a newly allocated Block
+        // Also, you're currently allocating an array of Block* in line 235, but then treating
+        // blockchain->chain[i] as a Block struct on line 248 by taking its address.
+        // This is a subtle but important structural change.
+        // If blockchain->chain is an array of Block*, then each element should point to a dynamically
+        // allocated Block.
+        blockchain->chain[i] = (Block*)malloc(sizeof(Block));
+        if (blockchain->chain[i] == NULL) {
+            logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for Block #%zu.", i);
+            current_load_block_idx = i; // Ensure index is set for cleanup
+            goto fail_load_block; // Jump to cleanup for previously allocated blocks
+        }
+        Block* block = blockchain->chain[i]; // Now 'block' points to the newly allocated Block
+        
+        current_block_ptr = block; // Update pointer for error handling
+        current_load_block_idx = i; // Update index for error logging
         block->transactions = NULL; // Initialize to NULL for safety
         block->num_transactions = 0;
 
@@ -243,32 +276,34 @@ Blockchain* disk_storage_load_blockchain(const char* filename) {
         if (fread(&block->nonce, sizeof(block->nonce), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to read block nonce for Block #%zu.", i); goto fail_load_block; }
         if (fread(&block->num_transactions, sizeof(block->num_transactions), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to read block num_transactions for Block #%zu.", i); goto fail_load_block; }
 
-        // Allocate memory for transactions array within the block
+        // Allocate memory for transactions array of POINTERS within the block
         if (block->num_transactions > 0) {
             block->transactions = (Transaction**)malloc(block->num_transactions * sizeof(Transaction*));
             if (block->transactions == NULL) {
-                logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for transactions in Block #%u.", block->index);
+                logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for transactions array of pointers in Block #%u.", block->index);
                 goto fail_load_block;
             }
 
             // Read each transaction
             for (size_t j = 0; j < block->num_transactions; j++) {
+                current_load_tx_idx = j; // Update index for error logging
                 block->transactions[j] = (Transaction*)malloc(sizeof(Transaction));
                 if (block->transactions[j] == NULL) {
                     logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for Transaction %zu in Block #%u.", j, block->index);
-                    goto fail_load_tx;
+                    goto fail_load_tx; // Will jump to the fail_load_tx label which handles cleanup for this block
                 }
                 // Initialize dynamic members to NULL to avoid double-frees on error
                 block->transactions[j]->encrypted_medical_data = NULL;
 
-                // Deserialize Transaction fields manually
+                // Deserialize Transaction fields manually (using -> now because block->transactions[j] is a pointer)
                 if (fread(block->transactions[j]->transaction_id, sizeof(block->transactions[j]->transaction_id), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to read tx ID for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx; }
                 if (fread(block->transactions[j]->sender_id, sizeof(block->transactions[j]->sender_id), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to read tx sender ID for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx; }
                 if (fread(block->transactions[j]->recipient_id, sizeof(block->transactions[j]->recipient_id), 1, fp) != 1) { logger_log(LOG_LEVEL_ERROR, "Failed to read tx recipient ID for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx; }
 
                 // Read encrypted medical data (length + data)
                 block->transactions[j]->encrypted_medical_data = read_buffer(fp, &block->transactions[j]->encrypted_medical_data_len);
-                if (block->transactions[j]->encrypted_medical_data_len == -1) { logger_log(LOG_LEVEL_ERROR, "Failed to read encrypted medical data length for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx; }
+                // FIX: Compare size_t to (size_t)-1
+                if (block->transactions[j]->encrypted_medical_data_len == (size_t)-1) { logger_log(LOG_LEVEL_ERROR, "Failed to read encrypted medical data length for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx; }
                 if (block->transactions[j]->encrypted_medical_data == NULL && block->transactions[j]->encrypted_medical_data_len > 0) { // Should only be NULL if len is 0
                     logger_log(LOG_LEVEL_ERROR, "Failed to allocate/read encrypted medical data for Block #%u, Tx %zu.", block->index, j); goto fail_load_tx;
                 }
@@ -290,27 +325,62 @@ Blockchain* disk_storage_load_blockchain(const char* filename) {
     return blockchain;
 
 fail_load_tx:
-    logger_log(LOG_LEVEL_ERROR, "Error during transaction loading at Block #%zu, Transaction #%zu.", i, j);
-    // This cleanup is tricky. It needs to free partial transactions in the current block,
-    // and then fall through to free the current block, and then the blockchain.
-    if (block->transactions[j] != NULL) {
-        if (block->transactions[j]->encrypted_medical_data != NULL) free(block->transactions[j]->encrypted_medical_data);
-        free(block->transactions[j]);
+    logger_log(LOG_LEVEL_ERROR, "Error during transaction loading at Block #%zu, Transaction #%zu.", current_load_block_idx, current_load_tx_idx);
+    // Cleanup for transactions within the current block being loaded
+    if (current_block_ptr != NULL && current_block_ptr->transactions != NULL) {
+        // Free the current (failed) transaction if it was allocated
+        if (current_block_ptr->transactions[current_load_tx_idx] != NULL) {
+            transaction_destroy(current_block_ptr->transactions[current_load_tx_idx]);
+            current_block_ptr->transactions[current_load_tx_idx] = NULL; // Avoid double free if fail_load_block also calls destroy
+        }
+        // Free any transactions that were successfully loaded in this block
+        for (size_t k = 0; k < current_load_tx_idx; k++) {
+            if (current_block_ptr->transactions[k] != NULL) {
+                transaction_destroy(current_block_ptr->transactions[k]);
+                current_block_ptr->transactions[k] = NULL;
+            }
+        }
+        free(current_block_ptr->transactions);
+        current_block_ptr->transactions = NULL;
     }
-    // Loop backwards to free any successfully loaded transactions in the current block
-    for (size_t k = 0; k < j; k++) {
-        transaction_destroy(block->transactions[k]); // Use transaction_destroy to free all parts
-    }
-    free(block->transactions); // Free the array of pointers
+    // Fall through to fail_load_block to handle cleanup for the current block and overall blockchain
 
 fail_load_block:
-    logger_log(LOG_LEVEL_ERROR, "Error during block loading at Block #%zu.", i);
-    // If we're here, current block (blockchain->chain[i]) might be partially filled.
-    // Ensure all already-allocated blocks (0 to i-1) and their transactions are destroyed.
-    // The current block (blockchain->chain[i]) and its transactions (if any) need to be destroyed.
-    // For simplicity, `blockchain_destroy` will clean up everything correctly if partially loaded.
+    logger_log(LOG_LEVEL_ERROR, "Error during block loading at Block #%zu.", current_load_block_idx);
+    // Cleanup for the current block and any previous blocks
+    // This now correctly iterates through already allocated blocks in blockchain->chain
+    // and calls transaction_destroy for their transactions, then frees the block itself.
+    if (blockchain != NULL && blockchain->chain != NULL) {
+        for (size_t k = 0; k <= current_load_block_idx; k++) {
+            if (blockchain->chain[k] != NULL) {
+                // If the block has transactions, destroy them first
+                if (blockchain->chain[k]->transactions != NULL) {
+                    for (size_t l = 0; l < blockchain->chain[k]->num_transactions; l++) {
+                        if (blockchain->chain[k]->transactions[l] != NULL) {
+                            transaction_destroy(blockchain->chain[k]->transactions[l]);
+                        }
+                    }
+                    free(blockchain->chain[k]->transactions);
+                    blockchain->chain[k]->transactions = NULL;
+                }
+                free(blockchain->chain[k]);
+                blockchain->chain[k] = NULL;
+            }
+        }
+        free(blockchain->chain); // Free the array of Block pointers
+        blockchain->chain = NULL;
+    }
+    // Fall through to fail_load to handle overall blockchain structure cleanup
+
 fail_load:
-    blockchain_destroy(blockchain); // Use blockchain_destroy to free all allocated memory
+    // This label will destroy the entire blockchain structure that was being built.
+    // This is the safest way to ensure all dynamically allocated memory is freed on error.
+    logger_log(LOG_LEVEL_ERROR, "Total blockchain load failed.");
+    if (blockchain != NULL) {
+        // If blockchain_destroy handles NULL blockchain->chain safely, this is fine.
+        // Otherwise, ensure chain is freed before this. The cleanup above helps.
+        blockchain_destroy(blockchain); // This function must correctly free all blocks and their transactions
+    }
     if (fp != NULL) fclose(fp);
     return NULL;
 }

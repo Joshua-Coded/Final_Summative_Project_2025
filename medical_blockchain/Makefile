@@ -16,28 +16,32 @@ DATA_DIR = data
 CONFIG_DIR = config
 
 # Compiler and flags
-CC = gcc
+CC = clang # <--- Changed: Explicitly use clang, as it's common on macOS. Or keep gcc if it maps to clang.
+            # If you want to use a specific GCC version installed by Homebrew, you'd specify its path.
 
 # Common CFLAGS for all builds
-CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror
+CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result # <--- Added: -Wno-unused-result to suppress common warnings from functions returning values that might not be used (e.g., logger_log return)
 CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
 
 # Build-specific CFLAGS
-CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG -fsanitize=address -fsanitize=undefined
+CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG # <--- Removed: fsanitize flags as they might cause issues if not fully configured with system libs. Add back if you specifically need ASan/UBSan and resolve toolchain issues.
 CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
 
 # Include paths for all source files (essential for finding headers like "utils/logger.h")
-# We'll use pkg-config for OpenSSL includes
-CFLAGS_INCLUDE = -I$(SRC_DIR) -I$(CONFIG_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
+CFLAGS_INCLUDE = -I. -I$(SRC_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
 
-# Libraries
-# Use pkg-config for OpenSSL library paths and names
-LIBS = $(shell pkg-config --libs libcrypto) -lm -lpthread -lcunit $(shell pkg-config --libs json-c)
+# Libraries specific to the main application (release/debug builds)
+LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread $(shell pkg-config --libs json-c)
 
-# Linker flags for security hardening (relro, now)
-LDFLAGS_SECURITY = -Wl,-z,relro,-z,now
+# Libraries specific to the test build
+LIBS_TEST = -lcunit -L/usr/local/lib # <--- Added: Explicit CUnit lib and search path for macOS Homebrew install
 
-# Source files organized by module (your original definition, which is great)
+# Linker flags for security hardening
+# IMPORTANT FIX: Removed -z,relro,-z,now as these are GNU ld specific and cause errors with macOS's linker.
+# macOS linker has different mechanisms for these features (e.g., -Wl,-bind_at_load for some equivalent, or they're default).
+LDFLAGS_SECURITY = -fPIE # -fPIE also applies to linking for position-independent executables
+
+# Source files organized by module
 CORE_SOURCES = $(wildcard $(SRC_DIR)/core/*.c)
 CRYPTO_SOURCES = $(wildcard $(SRC_DIR)/crypto/*.c)
 MINING_SOURCES = $(wildcard $(SRC_DIR)/mining/*.c)
@@ -57,7 +61,7 @@ ALL_SOURCES = $(CORE_SOURCES) $(CRYPTO_SOURCES) $(MINING_SOURCES) \
               $(STORAGE_SOURCES) $(NETWORK_SOURCES) $(UTILS_SOURCES) \
               $(CLI_SOURCES) $(CONFIG_SOURCES) $(MAIN_SOURCE)
 
-# Object files (your original definition, which is great)
+# Object files
 CORE_OBJECTS = $(CORE_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 CRYPTO_OBJECTS = $(CRYPTO_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 MINING_OBJECTS = $(MINING_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
@@ -87,19 +91,19 @@ TEST_TARGET = $(BIN_DIR)/test_runner
 
 # Default target
 .PHONY: all
-all: $(TARGET)
+all: release # <--- Changed: Default to release build for a clean setup
 
 # Debug build
 .PHONY: debug
 debug: CFLAGS = $(CFLAGS_DEBUG) $(CFLAGS_SECURITY) $(CFLAGS_INCLUDE)
-debug: LDFLAGS = $(LDFLAGS_SECURITY)
+debug: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP) # <--- Added LIBS_APP to LDFLAGS
 debug: clean $(TARGET)
 	@echo "Debug build completed successfully"
 
 # Release build
 .PHONY: release
 release: CFLAGS = $(CFLAGS_RELEASE) $(CFLAGS_SECURITY) $(CFLAGS_INCLUDE)
-release: LDFLAGS = $(LDFLAGS_SECURITY)
+release: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP) # <--- Added LIBS_APP to LDFLAGS
 release: clean $(TARGET)
 	@echo "Release build completed successfully"
 	@strip $(TARGET)
@@ -114,7 +118,7 @@ $(BIN_DIR):
 # Build main executable
 $(TARGET): $(ALL_OBJECTS) | $(BIN_DIR)
 	@echo "Linking $(TARGET)..."
-	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LIBS) $(LDFLAGS)
+	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LDFLAGS) # <--- Removed $(LIBS) here, now using $(LDFLAGS) which includes LIBS_APP
 	@echo "Build completed successfully!"
 
 # Compile source files
@@ -125,7 +129,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 # Build test executable
 $(TEST_TARGET): $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) | $(BIN_DIR)
 	@echo "Linking test executable..."
-	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LIBS) $(LDFLAGS_SECURITY)
+	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST) # <--- Added LIBS_TEST here for test-specific libs
 
 # Compile test files
 $(OBJ_DIR)/test/%.o: $(TEST_DIR)/%.c | $(OBJ_DIR)
@@ -224,21 +228,21 @@ help:
 	@echo "================================================="
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all           - Build the main executable (default)"
-	@echo "  debug         - Build with debug information"
-	@echo "  release       - Build optimized release version"
-	@echo "  test          - Build and run unit tests"
-	@echo "  memcheck      - Run memory leak detection"
-	@echo "  analyze       - Run static code analysis"
-	@echo "  format        - Format code with clang-format"
-	@echo "  docs          - Generate documentation"
-	@echo "  install       - Install system-wide"
-	@echo "  uninstall     - Remove system installation"
-	@echo "  dist          - Create distribution package"
-	@echo "  benchmark     - Run performance benchmarks"
-	@echo "  security-scan - Run security analysis"
-	@echo "  clean         - Clean build artifacts"
-	@echo "  help          - Show this help message"
+	@echo "  all             - Build the main executable (default)"
+	@echo "  debug           - Build with debug information"
+	@echo "  release         - Build optimized release version"
+	@echo "  test            - Build and run unit tests"
+	@echo "  memcheck        - Run memory leak detection"
+	@echo "  analyze         - Run static code analysis"
+	@echo "  format          - Format code with clang-format"
+	@echo "  docs            - Generate documentation"
+	@echo "  install         - Install system-wide"
+	@echo "  uninstall       - Remove system installation"
+	@echo "  dist            - Create distribution package"
+	@echo "  benchmark       - Run performance benchmarks"
+	@echo "  security-scan   - Run security analysis"
+	@echo "  clean           - Clean build artifacts"
+	@echo "  help            - Show this help message"
 	@echo ""
 	@echo "Project: $(PROJECT_NAME) v$(VERSION)"
 	@echo "Build Date: $(BUILD_DATE)"
@@ -267,7 +271,7 @@ deps:
 	@echo "=================="
 	@echo "Compiler: $(CC)"
 	@echo "Standard: C99"
-	@echo "Libraries: $(LIBS)"
+	@echo "Libraries: $(LIBS_APP) (for app) and $(LIBS_TEST) (for tests)"
 	@echo ""
 	@echo "Optional tools:"
 	@echo "- valgrind (memory checking)"

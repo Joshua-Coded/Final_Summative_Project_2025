@@ -1,12 +1,11 @@
-// src/crypto/sha256.h
 #ifndef SHA256_H
 #define SHA256_H
 
-#include <stdint.h> // For uint8_t, size_t
+#include <stdint.h> // For uint8_t
+#include <stddef.h> // For size_t
 
-// Define the size of a SHA256 hash in bytes
-// OpenSSL's SHA256_DIGEST_LENGTH is 32 bytes.
 #define SHA256_DIGEST_LENGTH 32
+
 
 /**
  * @brief Computes the SHA256 hash of a given data buffer.
@@ -18,11 +17,15 @@
 void sha256(const uint8_t *data, size_t len, uint8_t *output_hash);
 
 /**
- * @brief Computes the SHA256 hash of a given string and converts it to a hexadecimal string.
- * @param input_string The input string.
- * @param output_hex_string A buffer to store the 64-character hexadecimal hash string (plus null terminator).
- * Must be at least 65 bytes (2 * SHA256_DIGEST_LENGTH + 1).
+ * @brief Converts a raw byte array to its hexadecimal string representation.
+ * @param bytes The input byte array.
+ * @param len The length of the input byte array.
+ * @param hex_string_output A buffer to store the hexadecimal string. Must be at least (len * 2 + 1) bytes.
  */
+void bytes_to_hex_string(const uint8_t *bytes, size_t len, char *hex_string_output);
+
+// The sha256_hex_string function as it was, if it's still used elsewhere, is fine.
+// But the one needed for PoW is bytes_to_hex_string.
 void sha256_hex_string(const char *input_string, char *output_hex_string);
 
 #endif // SHA256_H

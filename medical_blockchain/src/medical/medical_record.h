@@ -3,8 +3,8 @@
 #define MEDICAL_RECORD_H
 
 #include <stddef.h> // For size_t
-#include "../core/blockchain.h" // For Blockchain struct
-#include "../security/encryption.h" // For encryption key
+#include "core/blockchain.h" // For Blockchain struct
+#include "security/encryption.h" // For encryption key
 
 // --- Medical Record Structure (Parsed from JSON) ---
 // This struct defines the fields we expect in a medical record JSON object.
