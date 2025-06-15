@@ -1,0 +1,18 @@
+[2025-06-15 15:34:28] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-15 15:34:49] [INFO] Blockchain is empty, nothing to print.
+[2025-06-15 15:35:00] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-15 15:35:00] [INFO] Block #0 mined successfully! Nonce: 216, Hash: 00c6a8d9d49be414bf56a651a05d5ea273aca556ba0724fe3762dfedbc553c40
+[2025-06-15 15:35:00] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-15 15:35:00] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-15 15:35:00] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-15 15:35:21] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 1)...
+[2025-06-15 15:35:21] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-15 15:35:21] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-15 15:35:34] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-15 15:35:34] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-15 15:35:34] [INFO] Block #1 mined successfully! Nonce: 220, Hash: 00f1e687fae9b1b9b979f7f980a5821c4153e440653025f406f11b58d19c9330
+[2025-06-15 15:35:34] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-15 15:35:34] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-15 15:35:34] [INFO] New block mined successfully!
+[2025-06-15 15:36:11] [INFO] Exiting CLI.
+[2025-06-15 15:36:11] [INFO] Blockchain destroyed.

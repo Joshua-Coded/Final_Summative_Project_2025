@@ -37,7 +37,7 @@
  * Higher values increase mining difficulty.
  */
 #define DEFAULT_DIFFICULTY 2 // For quick testing. For more realistic (but slow) mining, use 4 or 5.
-
+#define PENDING_TRANSACTIONS_INITIAL_CAPACITY 50 
 // --- Storage Paths ---
 
 /**

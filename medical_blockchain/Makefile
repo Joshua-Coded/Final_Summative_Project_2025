@@ -13,33 +13,32 @@ BIN_DIR = bin
 TEST_DIR = tests
 DOC_DIR = docs
 DATA_DIR = data
-CONFIG_DIR = config
+CONFIG_DIR = config # This variable is used for copying config files, not directly for include paths
 
 # Compiler and flags
-CC = clang # <--- Changed: Explicitly use clang, as it's common on macOS. Or keep gcc if it maps to clang.
-            # If you want to use a specific GCC version installed by Homebrew, you'd specify its path.
+CC = clang # Explicitly use clang, common on macOS. Or keep gcc if it maps to clang.
 
 # Common CFLAGS for all builds
-CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result # <--- Added: -Wno-unused-result to suppress common warnings from functions returning values that might not be used (e.g., logger_log return)
+CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result
 CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
 
 # Build-specific CFLAGS
-CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG # <--- Removed: fsanitize flags as they might cause issues if not fully configured with system libs. Add back if you specifically need ASan/UBSan and resolve toolchain issues.
+CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG
 CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
 
-# Include paths for all source files (essential for finding headers like "utils/logger.h")
-CFLAGS_INCLUDE = -I. -I$(SRC_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
+# Include paths for all source files.
+# By including -I$(SRC_DIR), all includes in C files should be relative to 'src/'.
+# E.g., #include "core/blockchain.h", #include "config/config.h"
+CFLAGS_INCLUDE = -I$(SRC_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
 
 # Libraries specific to the main application (release/debug builds)
 LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread $(shell pkg-config --libs json-c)
 
 # Libraries specific to the test build
-LIBS_TEST = -lcunit -L/usr/local/lib # <--- Added: Explicit CUnit lib and search path for macOS Homebrew install
+LIBS_TEST = -lcunit -L/usr/local/lib
 
 # Linker flags for security hardening
-# IMPORTANT FIX: Removed -z,relro,-z,now as these are GNU ld specific and cause errors with macOS's linker.
-# macOS linker has different mechanisms for these features (e.g., -Wl,-bind_at_load for some equivalent, or they're default).
-LDFLAGS_SECURITY = -fPIE # -fPIE also applies to linking for position-independent executables
+LDFLAGS_SECURITY = -fPIE
 
 # Source files organized by module
 CORE_SOURCES = $(wildcard $(SRC_DIR)/core/*.c)
@@ -62,19 +61,21 @@ ALL_SOURCES = $(CORE_SOURCES) $(CRYPTO_SOURCES) $(MINING_SOURCES) \
               $(CLI_SOURCES) $(CONFIG_SOURCES) $(MAIN_SOURCE)
 
 # Object files
-CORE_OBJECTS = $(CORE_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CRYPTO_OBJECTS = $(CRYPTO_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-MINING_OBJECTS = $(MINING_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-SECURITY_OBJECTS = $(SECURITY_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-MEDICAL_OBJECTS = $(MEDICAL_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CONTRACTS_OBJECTS = $(CONTRACTS_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-STORAGE_OBJECTS = $(STORAGE_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-NETWORK_OBJECTS = $(NETWORK_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-UTILS_OBJECTS = $(UTILS_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CLI_OBJECTS = $(CLI_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CONFIG_OBJECTS = $(CONFIG_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+# These patterns handle creating objects in specific subdirectories under obj/
+# They convert `src/dir/file.c` to `obj/dir/file.o`
+CORE_OBJECTS = $(patsubst $(SRC_DIR)/core/%.c,$(OBJ_DIR)/core/%.o,$(CORE_SOURCES))
+CRYPTO_OBJECTS = $(patsubst $(SRC_DIR)/crypto/%.c,$(OBJ_DIR)/crypto/%.o,$(CRYPTO_SOURCES))
+MINING_OBJECTS = $(patsubst $(SRC_DIR)/mining/%.c,$(OBJ_DIR)/mining/%.o,$(MINING_SOURCES))
+SECURITY_OBJECTS = $(patsubst $(SRC_DIR)/security/%.c,$(OBJ_DIR)/security/%.o,$(SECURITY_SOURCES))
+MEDICAL_OBJECTS = $(patsubst $(SRC_DIR)/medical/%.c,$(OBJ_DIR)/medical/%.o,$(MEDICAL_SOURCES))
+CONTRACTS_OBJECTS = $(patsubst $(SRC_DIR)/contracts/%.c,$(OBJ_DIR)/contracts/%.o,$(CONTRACTS_SOURCES))
+STORAGE_OBJECTS = $(patsubst $(SRC_DIR)/storage/%.c,$(OBJ_DIR)/storage/%.o,$(STORAGE_SOURCES))
+NETWORK_OBJECTS = $(patsubst $(SRC_DIR)/network/%.c,$(OBJ_DIR)/network/%.o,$(NETWORK_SOURCES))
+UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES))
+CLI_OBJECTS = $(patsubst $(SRC_DIR)/cli/%.c,$(OBJ_DIR)/cli/%.o,$(CLI_SOURCES))
+CONFIG_OBJECTS = $(patsubst $(SRC_DIR)/config/%.c,$(OBJ_DIR)/config/%.o,$(CONFIG_SOURCES))
 
-MAIN_OBJECT = $(MAIN_SOURCE:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+MAIN_OBJECT = $(patsubst $(SRC_DIR)/main.c,$(OBJ_DIR)/main.o,$(MAIN_SOURCE))
 
 ALL_OBJECTS = $(CORE_OBJECTS) $(CRYPTO_OBJECTS) $(MINING_OBJECTS) \
               $(SECURITY_OBJECTS) $(MEDICAL_OBJECTS) $(CONTRACTS_OBJECTS) \
@@ -83,7 +84,7 @@ ALL_OBJECTS = $(CORE_OBJECTS) $(CRYPTO_OBJECTS) $(MINING_OBJECTS) \
 
 # Test files
 TEST_SOURCES = $(wildcard $(TEST_DIR)/*.c)
-TEST_OBJECTS = $(TEST_SOURCES:$(TEST_DIR)/%.c=$(OBJ_DIR)/test/%.o)
+TEST_OBJECTS = $(patsubst $(TEST_DIR)/%.c,$(OBJ_DIR)/test/%.o,$(TEST_SOURCES))
 
 # Target executables
 TARGET = $(BIN_DIR)/$(PROJECT_NAME)
@@ -91,24 +92,25 @@ TEST_TARGET = $(BIN_DIR)/test_runner
 
 # Default target
 .PHONY: all
-all: release # <--- Changed: Default to release build for a clean setup
+all: release
 
 # Debug build
 .PHONY: debug
-debug: CFLAGS = $(CFLAGS_DEBUG) $(CFLAGS_SECURITY) $(CFLAGS_INCLUDE)
-debug: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP) # <--- Added LIBS_APP to LDFLAGS
+debug: CFLAGS = $(CFLAGS_DEBUG) $(CFLAGS_SECURITY)
+debug: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
 debug: clean $(TARGET)
 	@echo "Debug build completed successfully"
 
 # Release build
 .PHONY: release
-release: CFLAGS = $(CFLAGS_RELEASE) $(CFLAGS_SECURITY) $(CFLAGS_INCLUDE)
-release: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP) # <--- Added LIBS_APP to LDFLAGS
+release: CFLAGS = $(CFLAGS_RELEASE) $(CFLAGS_SECURITY)
+release: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
 release: clean $(TARGET)
 	@echo "Release build completed successfully"
 	@strip $(TARGET)
 
 # Create directories
+# Ensure all nested object directories exist before compilation
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)/{core,crypto,mining,security,medical,contracts,storage,network,utils,cli,config,test}
 
@@ -118,20 +120,25 @@ $(BIN_DIR):
 # Build main executable
 $(TARGET): $(ALL_OBJECTS) | $(BIN_DIR)
 	@echo "Linking $(TARGET)..."
-	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LDFLAGS) # <--- Removed $(LIBS) here, now using $(LDFLAGS) which includes LIBS_APP
+	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LDFLAGS)
 	@echo "Build completed successfully!"
 
-# Compile source files
+# **CRITICAL FIX HERE:**
+# This general rule compiles any .c file found in a subdirectory of SRC_DIR
+# into a .o file in the corresponding subdirectory of OBJ_DIR.
+# The `*` in the dependency will match the path relative to SRC_DIR (e.g., 'core/block')
+# and the target will construct the full path (e.g., 'obj/core/block.o').
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling $<..."
-	@$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) $(CFLAGS_INCLUDE) -c $< -o $@
 
 # Build test executable
 $(TEST_TARGET): $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) | $(BIN_DIR)
 	@echo "Linking test executable..."
-	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST) # <--- Added LIBS_TEST here for test-specific libs
+	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST)
 
 # Compile test files
+# Test object files are placed under $(OBJ_DIR)/test/
 $(OBJ_DIR)/test/%.o: $(TEST_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling test $<..."
 	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) -c $< -o $@

@@ -1,19 +1,20 @@
 // src/core/blockchain.c
-#include "blockchain.h"
-#include "block.h"      // For block-related functions/definitions
-#include "transaction.h"  // For transaction_destroy, transaction_is_valid
-#include "../utils/logger.h" // For logging
-#include "../crypto/hasher.h" // For BLOCK_HASH_SIZE, hasher_bytes_to_hex
+#include "core/blockchain.h"
+#include "core/block.h"      // For block-related functions/definitions
+#include "core/transaction.h"  // For transaction_destroy, transaction_is_valid
+#include "utils/logger.h"    // For logging (changed from ../utils/logger.h)
+#include "crypto/hasher.h"   // For BLOCK_HASH_SIZE, hasher_bytes_to_hex (changed from ../crypto/hasher.h)
+#include "mining/proof_of_work.h" // For proof_of_work_mine (changed from ../mining/proof_of_work.h)
+#include "config/config.h"   // For DEFAULT_DIFFICULTY and PENDING_TRANSACTIONS_INITIAL_CAPACITY (changed from ../config/config.h)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // Initial capacity for the blockchain array of Block* pointers
-#define INITIAL_CAPACITY 10
+#define CHAIN_INITIAL_CAPACITY 10
 
 // Define the previous hash for the genesis block (all zeros in binary)
-// This needs to be a uint8_t array to match the block_create function signature.
-// BLOCK_HASH_SIZE is 32 bytes for SHA256.
 static const uint8_t GENESIS_PREV_HASH_BYTES[BLOCK_HASH_SIZE] = {0}; // All 32 bytes are initialized to 0
 
 /**
@@ -23,59 +24,69 @@ static const uint8_t GENESIS_PREV_HASH_BYTES[BLOCK_HASH_SIZE] = {0}; // All 32 b
 Blockchain* blockchain_create() {
     Blockchain* bc = (Blockchain*)malloc(sizeof(Blockchain));
     if (bc == NULL) {
-        perror("Failed to allocate memory for Blockchain"); // Use perror before logger is initialized
+        perror("Failed to allocate memory for Blockchain");
         return NULL;
     }
 
-    // Allocate memory for an array of Block* pointers
-    bc->chain = (Block**)malloc(sizeof(Block*) * INITIAL_CAPACITY); // CRITICAL FIX: Block**
+    // Initialize chain members
+    bc->chain = (Block**)malloc(sizeof(Block*) * CHAIN_INITIAL_CAPACITY);
     if (bc->chain == NULL) {
         perror("Failed to allocate memory for blockchain chain (array of Block pointers)");
         free(bc);
         return NULL;
     }
-    bc->capacity = INITIAL_CAPACITY;
+    bc->capacity = CHAIN_INITIAL_CAPACITY;
     bc->length = 0;
+    bc->difficulty = DEFAULT_DIFFICULTY; // Initialize difficulty
 
-    // Create the genesis block (the first block in the chain)
-    // The previous hash is now passed as a uint8_t array.
-    Block* genesis_block = block_create(0, GENESIS_PREV_HASH_BYTES); // FIX: Use byte array
+    // Initialize pending_transactions members
+    bc->pending_transactions = (Transaction**)malloc(sizeof(Transaction*) * PENDING_TRANSACTIONS_INITIAL_CAPACITY);
+    if (bc->pending_transactions == NULL) {
+        perror("Failed to allocate memory for pending transactions");
+        free(bc->chain);
+        free(bc);
+        return NULL;
+    }
+    bc->pending_transactions_capacity = PENDING_TRANSACTIONS_INITIAL_CAPACITY;
+    bc->num_pending_transactions = 0;
+
+    // Create the genesis block
+    Block* genesis_block = block_create(0, GENESIS_PREV_HASH_BYTES);
     if (genesis_block == NULL) {
         logger_log(LOG_LEVEL_FATAL, "Failed to create genesis block.");
+        free(bc->pending_transactions); // Free new member too
         free(bc->chain);
         free(bc);
         return NULL;
     }
 
-    // Mine the genesis block (assuming DEFAULT_DIFFICULTY is in config.h)
-    // You need to decide where DEFAULT_DIFFICULTY comes from (config.h or another constant).
-    // Assuming it's in config.h and correctly included.
+    // Mine the genesis block
     if (block_mine(genesis_block, DEFAULT_DIFFICULTY) != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to mine genesis block.");
         block_destroy(genesis_block);
+        free(bc->pending_transactions);
         free(bc->chain);
         free(bc);
         return NULL;
     }
 
-    // Add genesis block to the chain. blockchain_add_block now takes ownership of genesis_block.
+    // Add genesis block to the chain.
     if (blockchain_add_block(bc, genesis_block) != 0) {
-        block_destroy(genesis_block); // Free the block if adding fails
+        block_destroy(genesis_block);
+        free(bc->pending_transactions);
         free(bc->chain);
         free(bc);
         logger_log(LOG_LEVEL_FATAL, "Failed to add genesis block to blockchain.");
         return NULL;
     }
-    // DO NOT block_destroy(genesis_block) here. blockchain_add_block now owns it.
 
-    logger_log(LOG_LEVEL_INFO, "Blockchain created with genesis block.");
+    logger_log(LOG_LEVEL_INFO, "Blockchain created with genesis block (Difficulty: %d).", bc->difficulty);
     return bc;
 }
 
 /**
  * @brief Adds a new block to the blockchain.
- * This function now takes ownership of the new_block pointer, so the caller
- * should not free new_block after calling this function (unless it returns -1).
+ * This function now takes ownership of the new_block pointer.
  * @param blockchain The blockchain to add the block to.
  * @param new_block The block to be added (must be heap-allocated).
  * @return 0 on success, -1 on failure.
@@ -86,12 +97,11 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
         return -1;
     }
 
-    // Check if capacity needs to be increased (dynamic array growth)
     if (blockchain->length == blockchain->capacity) {
         size_t new_capacity = blockchain->capacity * 2;
-        if (new_capacity == 0) new_capacity = INITIAL_CAPACITY; // Handle initial case if capacity was 0
+        if (new_capacity == 0) new_capacity = CHAIN_INITIAL_CAPACITY;
 
-        Block** temp_chain = (Block**)realloc(blockchain->chain, new_capacity * sizeof(Block*)); // FIX: Block**
+        Block** temp_chain = (Block**)realloc(blockchain->chain, new_capacity * sizeof(Block*));
         if (temp_chain == NULL) {
             logger_log(LOG_LEVEL_FATAL, "Failed to reallocate memory for blockchain chain.");
             return -1;
@@ -101,13 +111,129 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
         logger_log(LOG_LEVEL_DEBUG, "Blockchain capacity increased to %zu.", new_capacity);
     }
 
-    // Store the pointer to the new block. The blockchain now "owns" this block.
-    blockchain->chain[blockchain->length] = new_block; // FIX: Assign pointer directly
+    blockchain->chain[blockchain->length] = new_block;
     blockchain->length++;
 
     logger_log(LOG_LEVEL_INFO, "Block #%u added to the blockchain. Current length: %zu.",
-               new_block->index, blockchain->length); // Corrected %u to %zu for size_t length
+               new_block->index, blockchain->length);
     return 0;
+}
+
+/**
+ * @brief Adds a transaction to the list of pending transactions.
+ * @param blockchain The blockchain instance.
+ * @param tx The transaction to add. The blockchain takes ownership of `tx`.
+ * @return 0 on success, -1 on failure.
+ */
+int blockchain_add_transaction_to_pending(Blockchain* blockchain, Transaction* tx) {
+    if (blockchain == NULL || tx == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Error: Blockchain or transaction is NULL when adding to pending list.");
+        return -1;
+    }
+
+    // Reallocate if capacity is full
+    if (blockchain->num_pending_transactions == blockchain->pending_transactions_capacity) {
+        size_t new_capacity = blockchain->pending_transactions_capacity * 2;
+        if (new_capacity == 0) new_capacity = PENDING_TRANSACTIONS_INITIAL_CAPACITY; // Handle initial zero case
+
+        Transaction** temp_tx = (Transaction**)realloc(blockchain->pending_transactions, new_capacity * sizeof(Transaction*));
+        if (temp_tx == NULL) {
+            logger_log(LOG_LEVEL_FATAL, "Failed to reallocate memory for pending transactions.");
+            return -1;
+        }
+        blockchain->pending_transactions = temp_tx;
+        blockchain->pending_transactions_capacity = new_capacity;
+        logger_log(LOG_LEVEL_DEBUG, "Pending transactions capacity increased to %zu.", new_capacity);
+    }
+
+    blockchain->pending_transactions[blockchain->num_pending_transactions] = tx;
+    blockchain->num_pending_transactions++;
+    logger_log(LOG_LEVEL_INFO, "Transaction added to pending list. Total pending: %zu.", blockchain->num_pending_transactions);
+    return 0;
+}
+
+/**
+ * @brief Mines a new block with the current pending transactions.
+ * After a successful mine, pending transactions are cleared.
+ * @param blockchain The blockchain instance.
+ * @return 0 on success, -1 on failure.
+ */
+int blockchain_mine_new_block(Blockchain* blockchain) {
+    if (blockchain == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Error: Blockchain is NULL when mining a new block.");
+        return -1;
+    }
+
+    // Get the previous block's hash
+    Block* last_block = blockchain->chain[blockchain->length - 1];
+    if (last_block == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Last block is NULL, cannot mine a new block.");
+        return -1;
+    }
+
+    // Create a new block using the next index and the previous block's hash
+    Block* new_block = block_create(last_block->index + 1, last_block->hash);
+    if (new_block == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to create new block for mining.");
+        return -1;
+    }
+
+    // Add pending transactions to the new block
+    for (size_t i = 0; i < blockchain->num_pending_transactions; ++i) {
+        if (blockchain->pending_transactions[i] != NULL) {
+            if (block_add_transaction(new_block, blockchain->pending_transactions[i]) != 0) {
+                logger_log(LOG_LEVEL_WARN, "Failed to add pending transaction %zu to new block. Continuing with others.", i);
+                // The transaction remains in pending_transactions if adding to block fails, it's not destroyed here.
+            } else {
+                // Transaction successfully moved to new_block, set pending to NULL to prevent double-free
+                blockchain->pending_transactions[i] = NULL;
+            }
+        }
+    }
+
+    // Mine the new block
+    logger_log(LOG_LEVEL_INFO, "Attempting to mine new block #%u with %zu transactions...",
+               new_block->index, new_block->num_transactions);
+    if (block_mine(new_block, blockchain->difficulty) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to mine new block.");
+        block_destroy(new_block); // Destroy the block if mining fails
+        return -1;
+    }
+
+    // Add the mined block to the blockchain
+    if (blockchain_add_block(blockchain, new_block) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to add mined block to the blockchain.");
+        block_destroy(new_block);
+        return -1;
+    }
+
+    // Clear pending transactions after successful mining
+    for (size_t i = 0; i < blockchain->num_pending_transactions; ++i) {
+        if (blockchain->pending_transactions[i] != NULL) {
+            // Destroy any transactions that were not successfully added to the block
+            transaction_destroy(blockchain->pending_transactions[i]);
+            blockchain->pending_transactions[i] = NULL;
+        }
+    }
+    blockchain->num_pending_transactions = 0; // Reset count
+    logger_log(LOG_LEVEL_INFO, "Pending transactions cleared after mining block #%u.", new_block->index);
+
+    return 0;
+}
+
+/**
+ * @brief Retrieves a block from the blockchain by its index.
+ * @param blockchain The blockchain to query.
+ * @param index The index of the block to retrieve.
+ * @return A pointer to the Block at the specified index, or NULL if out of bounds.
+ */
+Block* blockchain_get_block_by_index(const Blockchain* blockchain, size_t index) {
+    if (blockchain == NULL || index >= blockchain->length) {
+        logger_log(LOG_LEVEL_ERROR, "Error: Invalid blockchain or index %zu (length %zu) in blockchain_get_block_by_index.",
+                   index, blockchain ? blockchain->length : 0);
+        return NULL;
+    }
+    return blockchain->chain[index];
 }
 
 /**
@@ -118,13 +244,12 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
 int blockchain_is_valid(const Blockchain* blockchain) {
     if (blockchain == NULL || blockchain->length == 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid or empty blockchain provided for validation.");
-        return -1; // Invalid or empty blockchain
+        return -1;
     }
 
     uint8_t calculated_hash[BLOCK_HASH_SIZE]; // Buffer for calculated hashes
 
     // The genesis block (index 0) must have a previous hash of all zeros
-    // FIX: Use memcmp for byte arrays
     if (memcmp(blockchain->chain[0]->prev_hash, GENESIS_PREV_HASH_BYTES, BLOCK_HASH_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid genesis block previous hash. Expected all zeros, Got %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->prev_hash, BLOCK_HASH_SIZE));
@@ -132,13 +257,11 @@ int blockchain_is_valid(const Blockchain* blockchain) {
     }
 
     // Validate genesis block's own hash by recalculating it
-    // FIX: Pass output buffer to block_calculate_hash
     if (block_calculate_hash(blockchain->chain[0], calculated_hash) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for genesis block validation.");
         return -1;
     }
 
-    // FIX: Use memcmp for byte arrays
     if (memcmp(blockchain->chain[0]->hash, calculated_hash, BLOCK_HASH_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Genesis block hash mismatch. Stored: %s, Recalculated: %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->hash, BLOCK_HASH_SIZE),
@@ -146,16 +269,22 @@ int blockchain_is_valid(const Blockchain* blockchain) {
         return -1;
     }
 
+    // Validate Proof of Work for genesis block
+    // block_is_valid already does this internally, let's use that for simplicity
+    if (block_is_valid(blockchain->chain[0], blockchain->difficulty) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Genesis block is invalid (failed block_is_valid check).");
+        return -1;
+    }
+
+
     // Iterate from the second block (index 1) to validate linkage and self-hashes
-    for (size_t i = 1; i < blockchain->length; i++) { // Changed loop counter to size_t
+    for (size_t i = 1; i < blockchain->length; i++) {
         // Validate current block's own hash by recalculating
-        // FIX: Pass output buffer to block_calculate_hash
         if (block_calculate_hash(blockchain->chain[i], calculated_hash) != 0) {
              logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for block #%u validation.", blockchain->chain[i]->index);
              return -1;
         }
 
-        // FIX: Use memcmp for byte arrays
         if (memcmp(blockchain->chain[i]->hash, calculated_hash, BLOCK_HASH_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Block #%u hash mismatch. Stored: %s, Recalculated: %s.",
                        blockchain->chain[i]->index,
@@ -165,8 +294,6 @@ int blockchain_is_valid(const Blockchain* blockchain) {
         }
 
         // Validate previous hash linkage:
-        // Current block's 'prev_hash' must match the 'hash' of the previous block
-        // FIX: Use memcmp for byte arrays
         if (memcmp(blockchain->chain[i]->prev_hash, blockchain->chain[i-1]->hash, BLOCK_HASH_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Block #%u previous hash mismatch. Expected %s (from block %u), Got %s.",
                        blockchain->chain[i]->index,
@@ -175,8 +302,12 @@ int blockchain_is_valid(const Blockchain* blockchain) {
                        hasher_bytes_to_hex(blockchain->chain[i]->prev_hash, BLOCK_HASH_SIZE));
             return -1;
         }
-        // TODO: Add Proof of Work validation here later
-        // TODO: Add Merkle Root validation here later
+
+        // Validate Proof of Work and transactions for current block
+        if (block_is_valid(blockchain->chain[i], blockchain->difficulty) != 0) {
+            logger_log(LOG_LEVEL_ERROR, "Block #%u is invalid (failed block_is_valid check).", blockchain->chain[i]->index);
+            return -1;
+        }
     }
     logger_log(LOG_LEVEL_INFO, "Blockchain is valid.");
     return 0;
@@ -195,16 +326,28 @@ void blockchain_destroy(Blockchain* blockchain) {
 
     if (blockchain->chain != NULL) {
         for (size_t i = 0; i < blockchain->length; i++) {
-            // Call block_destroy for each block pointer in the chain.
-            // block_destroy handles freeing the Block struct and its internal transactions.
             if (blockchain->chain[i] != NULL) {
                 block_destroy(blockchain->chain[i]);
-                blockchain->chain[i] = NULL; // Clear pointer after destroying
+                blockchain->chain[i] = NULL;
             }
         }
-        free(blockchain->chain); // Free the array of Block* pointers
+        free(blockchain->chain);
         blockchain->chain = NULL;
     }
-    free(blockchain); // Free the Blockchain struct itself
+
+    // --- FREE PENDING TRANSACTIONS AS WELL ---
+    if (blockchain->pending_transactions != NULL) {
+        for (size_t i = 0; i < blockchain->num_pending_transactions; ++i) {
+            if (blockchain->pending_transactions[i] != NULL) {
+                transaction_destroy(blockchain->pending_transactions[i]);
+                blockchain->pending_transactions[i] = NULL;
+            }
+        }
+        free(blockchain->pending_transactions);
+        blockchain->pending_transactions = NULL;
+    }
+    // ------------------------------------------
+
+    free(blockchain);
     logger_log(LOG_LEVEL_INFO, "Blockchain destroyed.");
 }

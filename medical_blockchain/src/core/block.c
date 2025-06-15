@@ -1,4 +1,3 @@
-// src/core/block.c
 #include "block.h"
 #include "transaction.h"    // For Transaction struct, transaction_destroy, and transaction_is_valid
 #include "../crypto/hasher.h" // For hasher_sha256, hasher_bytes_to_hex, SHA256_HASH_SIZE, HASH_HEX_LEN
@@ -270,12 +269,9 @@ void block_destroy(Block* block) {
     if (block->transactions != NULL) {
         for (size_t i = 0; i < block->num_transactions; i++) {
             if (block->transactions[i] != NULL) {
-                // Free the encrypted_medical_data if it was dynamically allocated
-                if (block->transactions[i]->encrypted_medical_data != NULL) {
-                    free(block->transactions[i]->encrypted_medical_data);
-                    block->transactions[i]->encrypted_medical_data = NULL;
-                }
-                free(block->transactions[i]); // Free the Transaction struct itself
+                // The transaction_destroy function should handle freeing
+                // encrypted_medical_data within the Transaction struct.
+                transaction_destroy(block->transactions[i]);
             }
         }
         free(block->transactions); // Free the array of Transaction pointers
@@ -289,50 +285,12 @@ void block_destroy(Block* block) {
 /**
  * @brief Prints the details of a block to the console.
  * @param block A pointer to the block to print.
+ * @param encryption_key The key used for decryption, or NULL if not decrypting.
  */
-void block_print(const Block* block) {
+// FIX: Merged logic from block_print_with_decryption into this unified block_print
+void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]) {
     if (block == NULL) {
         printf("Block is NULL.\n");
-        return;
-    }
-
-    printf("--- Block #%u ---\n", block->index);
-    printf("  Timestamp: %lld (%s)", (long long)block->timestamp, ctime((const time_t *)&block->timestamp)); // ctime adds newline
-    printf("  Prev Hash: %s\n", hasher_bytes_to_hex(block->prev_hash, BLOCK_HASH_SIZE));
-    printf("  Hash:      %s\n", hasher_bytes_to_hex(block->hash, BLOCK_HASH_SIZE));
-    printf("  Nonce:     %u\n", block->nonce);
-    printf("  Transactions: %zu\n", block->num_transactions);
-
-    if (block->num_transactions > 0 && block->transactions != NULL) {
-        for (size_t i = 0; i < block->num_transactions; i++) {
-            if (block->transactions[i] != NULL) {
-                printf("    Tx %zu ID: %s\n", i, hasher_bytes_to_hex(block->transactions[i]->transaction_id, SHA256_HASH_SIZE));
-                // For a basic print, we typically don't decrypt.
-                printf("      Sender: %s\n", block->transactions[i]->sender_id);
-                printf("      Recipient: %s\n", block->transactions[i]->recipient_id);
-                printf("      Amount: %.2f\n", block->transactions[i]->value);
-                printf("      Encrypted Data Length: %zu\n", block->transactions[i]->encrypted_medical_data_len);
-                // Print IV and Tag (in hex) for debugging/verification if needed
-                printf("      IV: %s\n", hasher_bytes_to_hex(block->transactions[i]->iv, AES_GCM_IV_SIZE));
-                printf("      Tag: %s\n", hasher_bytes_to_hex(block->transactions[i]->tag, AES_GCM_TAG_SIZE));
-
-            } else {
-                printf("    Tx %zu: (NULL)\n", i);
-            }
-        }
-    }
-    printf("-----------------\n");
-}
-
-
-/**
- * @brief Prints the details of a block, decrypting transaction data.
- * @param block A pointer to the block to print.
- * @param encryption_key The key used for decryption.
- */
-void block_print_with_decryption(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]) {
-    if (block == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Attempted to print a NULL block for decryption.");
         return;
     }
 
@@ -342,7 +300,7 @@ void block_print_with_decryption(const Block* block, const uint8_t encryption_ke
     hasher_bytes_to_hex_buf(block->hash, BLOCK_HASH_SIZE, hash_hex, sizeof(hash_hex));
     hasher_bytes_to_hex_buf(block->prev_hash, BLOCK_HASH_SIZE, prev_hash_hex, sizeof(prev_hash_hex));
 
-    printf("\n--- Block #%u (Decrypted View) ---\n", block->index);
+    printf("--- Block #%u ---\n", block->index);
     printf("  Timestamp: %lld (%s)", (long long)block->timestamp, ctime((const time_t *)&block->timestamp));
     printf("  Prev Hash: %s\n", prev_hash_hex);
     printf("  Hash:      %s\n", hash_hex);
@@ -356,58 +314,10 @@ void block_print_with_decryption(const Block* block, const uint8_t encryption_ke
                 printf("    Tx %zu: (NULL)\n", i);
                 continue;
             }
-
-            char tx_id_hex[HASH_HEX_LEN + 1];
-            hasher_bytes_to_hex_buf(tx->transaction_id, SHA256_HASH_SIZE, tx_id_hex, sizeof(tx_id_hex));
-
-            printf("    --- Transaction %zu ---\n", i);
-            printf("      ID: %s\n", tx_id_hex);
-            printf("      Sender: %s\n", tx->sender_id);
-            printf("      Recipient: %s\n", tx->recipient_id);
-            printf("      Amount: %.2f\n", tx->value);
-            printf("      Timestamp: %lld\n", (long long)tx->timestamp);
-            printf("      IV: %s\n", hasher_bytes_to_hex(tx->iv, AES_GCM_IV_SIZE)); // Print IV
-            printf("      Tag: %s\n", hasher_bytes_to_hex(tx->tag, AES_GCM_TAG_SIZE)); // Print Tag
-
-
-            // Decrypt and print data
-            if (tx->encrypted_medical_data_len > 0 && tx->encrypted_medical_data != NULL) {
-                // The ciphertext length for decryption is encrypted_medical_data_len as it DOES NOT contain IV or Tag.
-                // The plaintext buffer size should be at least encrypted_medical_data_len.
-                // Decrypted data length will be less than or equal to encrypted_medical_data_len
-                // (due to GCM not adding padding).
-                uint8_t* plaintext_buffer = (uint8_t*)malloc(tx->encrypted_medical_data_len + 1); // +1 for null terminator if it's text
-                if (plaintext_buffer == NULL) {
-                    logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for decrypted plaintext buffer.");
-                    printf("      Decryption Failed: Memory allocation error for plaintext buffer.\n");
-                    continue;
-                }
-
-                int decrypted_len = encryption_decrypt_aes_gcm(
-                    tx->encrypted_medical_data,     // The actual ciphertext
-                    (int)tx->encrypted_medical_data_len, // Length of the actual ciphertext
-                    encryption_key,                 // The decryption key
-                    tx->iv,                         // The IV from the transaction struct
-                    tx->tag,                        // The Tag from the transaction struct
-                    plaintext_buffer                // Buffer to store the decrypted plaintext
-                );
-
-                if (decrypted_len > 0) {
-                    plaintext_buffer[decrypted_len] = '\0'; // Null-terminate if treating as string
-                    printf("      Decrypted Data: %s\n", (char*)plaintext_buffer);
-                } else {
-                    printf("      Decryption Failed for Medical Data. Possible bad key, IV, tag, or tampered data.\n");
-                    char* encrypted_hex = hasher_bytes_to_hex(tx->encrypted_medical_data, tx->encrypted_medical_data_len);
-                    if (encrypted_hex) {
-                        printf("      Encrypted Data (Hex): %s\n", encrypted_hex);
-                        free(encrypted_hex);
-                    }
-                }
-                free(plaintext_buffer); // Free the allocated plaintext buffer
-            } else {
-                printf("      Data: (None)\n");
-            }
+            // Use the transaction_print function, passing the encryption_key
+            // It will handle decryption internally if the key is not NULL.
+            transaction_print(tx, encryption_key);
         }
     }
-    printf("---------------------------\n");
+    printf("-----------------\n\n");
 }
