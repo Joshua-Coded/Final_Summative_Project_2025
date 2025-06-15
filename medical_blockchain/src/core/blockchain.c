@@ -3,6 +3,7 @@
 #include "core/block.h"      // For block-related functions/definitions
 #include "core/transaction.h"  // For transaction_destroy, transaction_is_valid
 #include "utils/logger.h"    // For logging (changed from ../utils/logger.h)
+#include "utils/colors.h"    // Include colors header
 #include "crypto/hasher.h"   // For BLOCK_HASH_SIZE, hasher_bytes_to_hex (changed from ../crypto/hasher.h)
 #include "mining/proof_of_work.h" // For proof_of_work_mine (changed from ../mining/proof_of_work.h)
 #include "config/config.h"   // For DEFAULT_DIFFICULTY and PENDING_TRANSACTIONS_INITIAL_CAPACITY (changed from ../config/config.h)
@@ -24,14 +25,14 @@ static const uint8_t GENESIS_PREV_HASH_BYTES[BLOCK_HASH_SIZE] = {0}; // All 32 b
 Blockchain* blockchain_create() {
     Blockchain* bc = (Blockchain*)malloc(sizeof(Blockchain));
     if (bc == NULL) {
-        perror("Failed to allocate memory for Blockchain");
+        print_red("Failed to allocate memory for Blockchain\n"); // Using helper
         return NULL;
     }
 
     // Initialize chain members
     bc->chain = (Block**)malloc(sizeof(Block*) * CHAIN_INITIAL_CAPACITY);
     if (bc->chain == NULL) {
-        perror("Failed to allocate memory for blockchain chain (array of Block pointers)");
+        print_red("Failed to allocate memory for blockchain chain (array of Block pointers)\n"); // Using helper
         free(bc);
         return NULL;
     }
@@ -42,7 +43,7 @@ Blockchain* blockchain_create() {
     // Initialize pending_transactions members
     bc->pending_transactions = (Transaction**)malloc(sizeof(Transaction*) * PENDING_TRANSACTIONS_INITIAL_CAPACITY);
     if (bc->pending_transactions == NULL) {
-        perror("Failed to allocate memory for pending transactions");
+        print_red("Failed to allocate memory for pending transactions\n"); // Using helper
         free(bc->chain);
         free(bc);
         return NULL;
@@ -61,6 +62,7 @@ Blockchain* blockchain_create() {
     }
 
     // Mine the genesis block
+    logger_log(LOG_LEVEL_INFO, "Mining Genesis Block (Block #0) with difficulty %d...", DEFAULT_DIFFICULTY);
     if (block_mine(genesis_block, DEFAULT_DIFFICULTY) != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to mine genesis block.");
         block_destroy(genesis_block);
@@ -81,6 +83,7 @@ Blockchain* blockchain_create() {
     }
 
     logger_log(LOG_LEVEL_INFO, "Blockchain created with genesis block (Difficulty: %d).", bc->difficulty);
+    print_green("Genesis Block (Block #0) created and mined successfully!\n"); // Using helper
     return bc;
 }
 
@@ -104,6 +107,7 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
         Block** temp_chain = (Block**)realloc(blockchain->chain, new_capacity * sizeof(Block*));
         if (temp_chain == NULL) {
             logger_log(LOG_LEVEL_FATAL, "Failed to reallocate memory for blockchain chain.");
+            print_red("Failed to reallocate memory for blockchain chain.\n"); // Using helper
             return -1;
         }
         blockchain->chain = temp_chain;
@@ -116,6 +120,10 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
 
     logger_log(LOG_LEVEL_INFO, "Block #%u added to the blockchain. Current length: %zu.",
                new_block->index, blockchain->length);
+    // For mixed colors, you can still use multiple print calls or combine some ANSI codes manually if needed for precision.
+    print_green("Block #%u added to the blockchain. ", new_block->index);
+    printf("Current length: ");
+    print_yellow("%zu\n", blockchain->length); // This breaks it into multiple calls.
     return 0;
 }
 
@@ -139,6 +147,7 @@ int blockchain_add_transaction_to_pending(Blockchain* blockchain, Transaction* t
         Transaction** temp_tx = (Transaction**)realloc(blockchain->pending_transactions, new_capacity * sizeof(Transaction*));
         if (temp_tx == NULL) {
             logger_log(LOG_LEVEL_FATAL, "Failed to reallocate memory for pending transactions.");
+            print_red("Failed to reallocate memory for pending transactions.\n"); // Using helper
             return -1;
         }
         blockchain->pending_transactions = temp_tx;
@@ -149,6 +158,9 @@ int blockchain_add_transaction_to_pending(Blockchain* blockchain, Transaction* t
     blockchain->pending_transactions[blockchain->num_pending_transactions] = tx;
     blockchain->num_pending_transactions++;
     logger_log(LOG_LEVEL_INFO, "Transaction added to pending list. Total pending: %zu.", blockchain->num_pending_transactions);
+    print_green("Transaction added to pending list. ");
+    printf("Total pending: ");
+    print_yellow("%zu\n", blockchain->num_pending_transactions); // Breaks into multiple calls
     return 0;
 }
 
@@ -168,6 +180,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     Block* last_block = blockchain->chain[blockchain->length - 1];
     if (last_block == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Last block is NULL, cannot mine a new block.");
+        print_red("Error: Last block is NULL, cannot mine a new block.\n"); // Using helper
         return -1;
     }
 
@@ -175,6 +188,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     Block* new_block = block_create(last_block->index + 1, last_block->hash);
     if (new_block == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to create new block for mining.");
+        print_red("Failed to create new block for mining.\n"); // Using helper
         return -1;
     }
 
@@ -183,6 +197,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
         if (blockchain->pending_transactions[i] != NULL) {
             if (block_add_transaction(new_block, blockchain->pending_transactions[i]) != 0) {
                 logger_log(LOG_LEVEL_WARN, "Failed to add pending transaction %zu to new block. Continuing with others.", i);
+                print_yellow("Warning: Failed to add pending transaction %zu to new block. Continuing.\n", i); // Using helper
                 // The transaction remains in pending_transactions if adding to block fails, it's not destroyed here.
             } else {
                 // Transaction successfully moved to new_block, set pending to NULL to prevent double-free
@@ -194,8 +209,12 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     // Mine the new block
     logger_log(LOG_LEVEL_INFO, "Attempting to mine new block #%u with %zu transactions...",
                new_block->index, new_block->num_transactions);
+    print_cyan("Attempting to mine new block #%u with %zu transactions...\n",
+           new_block->index, new_block->num_transactions); // Using helper
+
     if (block_mine(new_block, blockchain->difficulty) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to mine new block.");
+        print_red("Failed to mine new block.\n"); // Using helper
         block_destroy(new_block); // Destroy the block if mining fails
         return -1;
     }
@@ -203,6 +222,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     // Add the mined block to the blockchain
     if (blockchain_add_block(blockchain, new_block) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to add mined block to the blockchain.");
+        print_red("Failed to add mined block to the blockchain.\n"); // Using helper
         block_destroy(new_block);
         return -1;
     }
@@ -217,6 +237,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     }
     blockchain->num_pending_transactions = 0; // Reset count
     logger_log(LOG_LEVEL_INFO, "Pending transactions cleared after mining block #%u.", new_block->index);
+    print_green("Pending transactions cleared after mining block #%u.\n", new_block->index); // Using helper
 
     return 0;
 }
@@ -244,21 +265,28 @@ Block* blockchain_get_block_by_index(const Blockchain* blockchain, size_t index)
 int blockchain_is_valid(const Blockchain* blockchain) {
     if (blockchain == NULL || blockchain->length == 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid or empty blockchain provided for validation.");
+        print_red("Invalid or empty blockchain provided for validation.\n"); // Using helper
         return -1;
     }
 
     uint8_t calculated_hash[BLOCK_HASH_SIZE]; // Buffer for calculated hashes
 
+    print_cyan("Starting blockchain validation...\n"); // Using helper
+
     // The genesis block (index 0) must have a previous hash of all zeros
     if (memcmp(blockchain->chain[0]->prev_hash, GENESIS_PREV_HASH_BYTES, BLOCK_HASH_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid genesis block previous hash. Expected all zeros, Got %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->prev_hash, BLOCK_HASH_SIZE));
+        print_red("Validation Failed: ");
+        printf("Genesis block has incorrect previous hash.\n"); // Splitting for mixed color
         return -1;
     }
 
     // Validate genesis block's own hash by recalculating it
     if (block_calculate_hash(blockchain->chain[0], calculated_hash) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for genesis block validation.");
+        print_red("Validation Failed: ");
+        printf("Failed to calculate hash for Genesis Block.\n"); // Splitting for mixed color
         return -1;
     }
 
@@ -266,88 +294,104 @@ int blockchain_is_valid(const Blockchain* blockchain) {
         logger_log(LOG_LEVEL_ERROR, "Genesis block hash mismatch. Stored: %s, Recalculated: %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->hash, BLOCK_HASH_SIZE),
                    hasher_bytes_to_hex(calculated_hash, BLOCK_HASH_SIZE));
+        print_red("Validation Failed: ");
+        printf("Genesis block hash mismatch.\n"); // Splitting for mixed color
         return -1;
     }
 
     // Validate Proof of Work for genesis block
-    // block_is_valid already does this internally, let's use that for simplicity
     if (block_is_valid(blockchain->chain[0], blockchain->difficulty) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Genesis block is invalid (failed block_is_valid check).");
+        print_red("Validation Failed: ");
+        printf("Genesis block failed internal validation (PoW or transactions).\n"); // Splitting for mixed color
         return -1;
     }
+    print_green("Genesis Block (#0) validated successfully.\n"); // Using helper
 
 
     // Iterate from the second block (index 1) to validate linkage and self-hashes
     for (size_t i = 1; i < blockchain->length; i++) {
+        Block* current_block = blockchain->chain[i];
+        Block* prev_block = blockchain->chain[i-1];
+
+        print_cyan("  Validating Block #%u...\n", current_block->index); // Using helper
+
         // Validate current block's own hash by recalculating
-        if (block_calculate_hash(blockchain->chain[i], calculated_hash) != 0) {
-             logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for block #%u validation.", blockchain->chain[i]->index);
+        if (block_calculate_hash(current_block, calculated_hash) != 0) {
+             logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for block #%u validation.", current_block->index);
+             print_red("Validation Failed: ");
+             printf("Failed to calculate hash for Block #%u.\n", current_block->index); // Splitting for mixed color
              return -1;
         }
 
-        if (memcmp(blockchain->chain[i]->hash, calculated_hash, BLOCK_HASH_SIZE) != 0) {
+        if (memcmp(current_block->hash, calculated_hash, BLOCK_HASH_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Block #%u hash mismatch. Stored: %s, Recalculated: %s.",
-                       blockchain->chain[i]->index,
-                       hasher_bytes_to_hex(blockchain->chain[i]->hash, BLOCK_HASH_SIZE),
+                       current_block->index,
+                       hasher_bytes_to_hex(current_block->hash, BLOCK_HASH_SIZE),
                        hasher_bytes_to_hex(calculated_hash, BLOCK_HASH_SIZE));
+            print_red("Validation Failed: ");
+            printf("Block #%u hash mismatch.\n", current_block->index); // Splitting for mixed color
             return -1;
         }
 
         // Validate previous hash linkage:
-        if (memcmp(blockchain->chain[i]->prev_hash, blockchain->chain[i-1]->hash, BLOCK_HASH_SIZE) != 0) {
+        if (memcmp(current_block->prev_hash, prev_block->hash, BLOCK_HASH_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Block #%u previous hash mismatch. Expected %s (from block %u), Got %s.",
-                       blockchain->chain[i]->index,
-                       hasher_bytes_to_hex(blockchain->chain[i-1]->hash, BLOCK_HASH_SIZE),
-                       blockchain->chain[i-1]->index,
-                       hasher_bytes_to_hex(blockchain->chain[i]->prev_hash, BLOCK_HASH_SIZE));
+                       current_block->index,
+                       hasher_bytes_to_hex(prev_block->hash, BLOCK_HASH_SIZE),
+                       prev_block->index,
+                       hasher_bytes_to_hex(current_block->prev_hash, BLOCK_HASH_SIZE));
+            print_red("Validation Failed: ");
+            printf("Block #%u previous hash does not match Block #%u's hash.\n",
+                   current_block->index, prev_block->index); // Splitting for mixed color
             return -1;
         }
 
         // Validate Proof of Work and transactions for current block
-        if (block_is_valid(blockchain->chain[i], blockchain->difficulty) != 0) {
-            logger_log(LOG_LEVEL_ERROR, "Block #%u is invalid (failed block_is_valid check).", blockchain->chain[i]->index);
+        if (block_is_valid(current_block, blockchain->difficulty) != 0) {
+            logger_log(LOG_LEVEL_ERROR, "Block #%u is invalid (failed block_is_valid check).", current_block->index);
+            print_red("Validation Failed: ");
+            printf("Block #%u is invalid (failed internal validation).\n", current_block->index); // Splitting for mixed color
             return -1;
         }
+        print_green("  Block #%u validated successfully.\n", current_block->index); // Using helper
     }
-    logger_log(LOG_LEVEL_INFO, "Blockchain is valid.");
+
+    print_green("Blockchain is valid.\n"); // Using helper
     return 0;
 }
 
 /**
- * @brief Frees the memory allocated for the blockchain.
- * Iterates through each block pointer in the chain and calls block_destroy on it,
- * then frees the array of block pointers itself, and finally the Blockchain struct.
- * @param blockchain The blockchain to free.
+ * @brief Frees all memory allocated for the blockchain.
+ * @param blockchain A pointer to the Blockchain to destroy.
  */
 void blockchain_destroy(Blockchain* blockchain) {
     if (blockchain == NULL) {
         return;
     }
 
+    print_cyan("Destroying blockchain...\n"); // Using helper
+
     if (blockchain->chain != NULL) {
         for (size_t i = 0; i < blockchain->length; i++) {
             if (blockchain->chain[i] != NULL) {
                 block_destroy(blockchain->chain[i]);
-                blockchain->chain[i] = NULL;
             }
         }
         free(blockchain->chain);
         blockchain->chain = NULL;
     }
 
-    // --- FREE PENDING TRANSACTIONS AS WELL ---
     if (blockchain->pending_transactions != NULL) {
-        for (size_t i = 0; i < blockchain->num_pending_transactions; ++i) {
+        for (size_t i = 0; i < blockchain->num_pending_transactions; i++) {
             if (blockchain->pending_transactions[i] != NULL) {
                 transaction_destroy(blockchain->pending_transactions[i]);
-                blockchain->pending_transactions[i] = NULL;
             }
         }
         free(blockchain->pending_transactions);
         blockchain->pending_transactions = NULL;
     }
-    // ------------------------------------------
 
     free(blockchain);
-    logger_log(LOG_LEVEL_INFO, "Blockchain destroyed.");
+    print_cyan("Blockchain destroyed.\n"); // Using helper
 }

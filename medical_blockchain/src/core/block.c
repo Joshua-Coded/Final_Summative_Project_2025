@@ -1,8 +1,10 @@
+// src/core/block.c
 #include "block.h"
 #include "transaction.h"    // For Transaction struct, transaction_destroy, and transaction_is_valid
 #include "../crypto/hasher.h" // For hasher_sha256, hasher_bytes_to_hex, SHA256_HASH_SIZE, HASH_HEX_LEN
 #include "../security/encryption.h" // Required for encryption/decryption functions and AES_256_KEY_SIZE, AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE
 #include "../utils/logger.h"
+#include "../utils/colors.h" // Include colors header
 #include "../config/config.h" // For BLOCKCHAIN_DIFFICULTY, MAX_TRANSACTIONS_PER_BLOCK, BLOCK_HASH_SIZE
 #include <stdlib.h>
 #include <string.h>
@@ -287,10 +289,9 @@ void block_destroy(Block* block) {
  * @param block A pointer to the block to print.
  * @param encryption_key The key used for decryption, or NULL if not decrypting.
  */
-// FIX: Merged logic from block_print_with_decryption into this unified block_print
 void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]) {
     if (block == NULL) {
-        printf("Block is NULL.\n");
+        print_red("Block is NULL.\n"); // Use helper function
         return;
     }
 
@@ -300,24 +301,33 @@ void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SI
     hasher_bytes_to_hex_buf(block->hash, BLOCK_HASH_SIZE, hash_hex, sizeof(hash_hex));
     hasher_bytes_to_hex_buf(block->prev_hash, BLOCK_HASH_SIZE, prev_hash_hex, sizeof(prev_hash_hex));
 
-    printf("--- Block #%u ---\n", block->index);
-    printf("  Timestamp: %lld (%s)", (long long)block->timestamp, ctime((const time_t *)&block->timestamp));
-    printf("  Prev Hash: %s\n", prev_hash_hex);
-    printf("  Hash:      %s\n", hash_hex);
-    printf("  Nonce:     %u\n", block->nonce);
-    printf("  Transactions: %zu\n", block->num_transactions);
+    print_bold_cyan("--- Block #%u ---\n", block->index); // Use print_bold_cyan
+    print_yellow("  Timestamp:    ");
+    printf("%lld (", (long long)block->timestamp);
+    print_bright_black("%s", ctime((const time_t *)&block->timestamp));
+    printf(")\n");
+    print_yellow("  Prev Hash:    ");
+    printf("%s\n", prev_hash_hex);
+    print_yellow("  Hash:         ");
+    printf("%s\n", hash_hex);
+    print_yellow("  Nonce:        ");
+    printf("%u\n", block->nonce);
+    print_yellow("  Transactions: ");
+    printf("%zu\n", block->num_transactions);
 
     if (block->num_transactions > 0 && block->transactions != NULL) {
+        print_magenta("  --- Transactions in Block #%u ---\n", block->index);
         for (size_t i = 0; i < block->num_transactions; i++) {
+            print_blue("  Tx %zu:\n", i);
             Transaction* tx = block->transactions[i];
             if (tx == NULL) {
-                printf("    Tx %zu: (NULL)\n", i);
+                print_red("    Tx %zu: (NULL)\n", i);
                 continue;
             }
-            // Use the transaction_print function, passing the encryption_key
-            // It will handle decryption internally if the key is not NULL.
             transaction_print(tx, encryption_key);
         }
+    } else {
+        print_yellow("  No transactions in this block.\n");
     }
-    printf("-----------------\n\n");
+    print_bold_cyan("--------------------------------------------------\n\n");
 }

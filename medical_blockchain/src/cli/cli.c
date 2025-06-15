@@ -1,21 +1,22 @@
 // src/cli/cli.c
 #include "cli/cli.h"
 #include "utils/logger.h"
+#include "utils/colors.h" // <--- NEW: Include colors header
 #include "core/blockchain.h"
-#include "core/block.h"        // Might need for block_print
-#include "core/transaction.h"  // Might need for creating transactions
-#include "security/encryption.h" // For encryption_generate_random_bytes and AES_256_KEY_SIZE
-#include "config/config.h"            // For DEFAULT_DIFFICULTY and PENDING_TRANSACTIONS_INITIAL_CAPACITY (if not already in block.h or blockchain.h)
-#include "storage/disk_storage.h" // For loading/saving blockchain
+#include "core/block.h"
+#include "core/transaction.h"
+#include "security/encryption.h"
+#include "config/config.h"
+#include "storage/disk_storage.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h> // For atoi, exit, malloc, free
-#include <ctype.h>  // For tolower
+#include <stdlib.h>
+#include <ctype.h>
+#include <time.h> // For ctime in print_chain
 
 // Forward declarations for internal CLI commands
 static void print_help_menu();
-// Removed blockchain_file_path parameter from handle_create_blockchain_interactive
 static void handle_create_blockchain_interactive(Blockchain** bc);
 static void handle_add_transaction_interactive(Blockchain* bc);
 static void handle_mine_block_interactive(Blockchain* bc);
@@ -26,12 +27,10 @@ static void handle_save_blockchain_interactive(Blockchain* bc, const char* block
 static void handle_load_blockchain_interactive(Blockchain** bc, const char* blockchain_file_path);
 
 // A dummy encryption key for demonstration purposes.
-// In a real application, this would be securely managed (e.g., loaded from a file, user input, HSM).
 static uint8_t g_dummy_encryption_key[AES_256_KEY_SIZE];
 static int g_key_initialized = 0;
-static Blockchain* g_current_blockchain = NULL; // Global blockchain pointer for the interactive session
+static Blockchain* g_current_blockchain = NULL;
 static const char* g_blockchain_file_path = DEFAULT_DATA_DIR "/" DEFAULT_BLOCKCHAIN_FILE;
-
 
 // Helper to convert string to lowercase
 static void to_lowercase(char* str) {
@@ -40,17 +39,15 @@ static void to_lowercase(char* str) {
     }
 }
 
-int cli_run() { // No longer takes argc, argv
-    // Initialize logger first
+int cli_run() {
     if (logger_init("blockchain_cli.log") != 0) {
-        fprintf(stderr, "Failed to initialize logger.\n");
+        fprintf(stderr, ANSI_COLOR_RED "Failed to initialize logger.\n" ANSI_COLOR_RESET);
         return 1;
     }
-    logger_set_level(LOG_LEVEL_INFO); // Default CLI log level
+    logger_set_level(LOG_LEVEL_INFO);
 
     logger_log(LOG_LEVEL_INFO, "Blockchain CLI started (interactive mode).");
 
-    // Initialize the dummy key once
     if (!g_key_initialized) {
         if (encryption_generate_random_bytes(g_dummy_encryption_key, AES_256_KEY_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to generate dummy encryption key for CLI.");
@@ -61,7 +58,6 @@ int cli_run() { // No longer takes argc, argv
         logger_log(LOG_LEVEL_DEBUG, "Dummy encryption key initialized.");
     }
 
-    // Ensure data directory exists
     if (disk_storage_ensure_dir(DEFAULT_DATA_DIR) != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to create blockchain data directory: %s. Exiting.", DEFAULT_DATA_DIR);
         logger_shutdown();
@@ -71,29 +67,30 @@ int cli_run() { // No longer takes argc, argv
     char command[256];
     int running = 1;
 
-    printf("\nWelcome to the Blockchain Medical Records CLI (Interactive Mode)!\n");
-    printf("Type 'help' for a list of commands, or 'exit' to quit.\n");
+    // Enhanced welcome message
+    printf(ANSI_COLOR_CYAN ANSI_STYLE_BOLD "\n==============================================\n");
+    printf("  Welcome to the Medical Blockchain CLI!\n");
+    printf("==============================================\n" ANSI_COLOR_RESET);
+    printf("Type " ANSI_COLOR_YELLOW "'help'" ANSI_COLOR_RESET " for a list of commands, or " ANSI_COLOR_YELLOW "'exit'" ANSI_COLOR_RESET " to quit.\n");
 
     while (running) {
-        printf("\nBlockchain CLI > ");
+        printf(ANSI_COLOR_BLUE "\nBlockchain CLI > " ANSI_COLOR_RESET);
         if (fgets(command, sizeof(command), stdin) == NULL) {
             logger_log(LOG_LEVEL_ERROR, "Error reading input or EOF reached.");
             break;
         }
-        command[strcspn(command, "\n")] = 0; // Remove newline character
+        command[strcspn(command, "\n")] = 0;
 
         char *token = strtok(command, " ");
         if (token == NULL) {
-            continue; // Empty input
+            continue;
         }
 
-        to_lowercase(token); // Convert command to lowercase for case-insensitivity
+        to_lowercase(token);
 
         if (strcmp(token, "help") == 0) {
             print_help_menu();
         } else if (strcmp(token, "create-blockchain") == 0) {
-            // Pass g_blockchain_file_path here if it were needed by the function itself
-            // but since it's global, we can remove the parameter.
             handle_create_blockchain_interactive(&g_current_blockchain);
         } else if (strcmp(token, "load-blockchain") == 0) {
             handle_load_blockchain_interactive(&g_current_blockchain, g_blockchain_file_path);
@@ -116,13 +113,14 @@ int cli_run() { // No longer takes argc, argv
             handle_set_log_level_interactive();
         } else if (strcmp(token, "exit") == 0 || strcmp(token, "quit") == 0) {
             running = 0;
+            printf(ANSI_COLOR_CYAN "Exiting Medical Blockchain CLI. Goodbye!\n" ANSI_COLOR_RESET);
             logger_log(LOG_LEVEL_INFO, "Exiting CLI.");
         } else {
+            printf(ANSI_COLOR_RED "Unknown command: '%s'. " ANSI_COLOR_RESET "Type " ANSI_COLOR_YELLOW "'help'" ANSI_COLOR_RESET " for options.\n", token);
             logger_log(LOG_LEVEL_WARN, "Unknown command: '%s'. Type 'help' for options.", token);
         }
     }
 
-    // Clean up global blockchain
     if (g_current_blockchain) {
         blockchain_destroy(g_current_blockchain);
         g_current_blockchain = NULL;
@@ -132,166 +130,171 @@ int cli_run() { // No longer takes argc, argv
 }
 
 static void print_help_menu() {
-    printf("\nAvailable Commands:\n");
-    printf("  help                         : Display this help menu.\n");
-    printf("  create-blockchain            : Creates a new blockchain with a genesis block (overwrites if exists).\n");
-    printf("  load-blockchain              : Loads an existing blockchain from disk.\n");
-    printf("  save-blockchain              : Saves the current blockchain to disk.\n");
-    printf("  add-transaction              : Adds a placeholder transaction to pending transactions.\n");
-    printf("  mine-block                   : Mines a new block with pending transactions.\n");
-    printf("  validate-chain               : Validates the integrity of the blockchain.\n");
-    printf("  print-chain [--decrypt]      : Prints all blocks. Use --decrypt to attempt medical data decryption.\n");
-    printf("  set-log-level                : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
-    printf("  exit | quit                  : Exits the CLI application.\n");
+    printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "\n--- Available Commands ---\n" ANSI_COLOR_RESET);
+    printf("  " ANSI_COLOR_YELLOW "help" ANSI_COLOR_RESET "                         : Display this help menu.\n");
+    printf("  " ANSI_COLOR_GREEN "create-blockchain" ANSI_COLOR_RESET "            : Creates a new blockchain with a genesis block (overwrites if exists).\n");
+    printf("  " ANSI_COLOR_GREEN "load-blockchain" ANSI_COLOR_RESET "              : Loads an existing blockchain from disk.\n");
+    printf("  " ANSI_COLOR_GREEN "save-blockchain" ANSI_COLOR_RESET "              : Saves the current blockchain to disk.\n");
+    printf("  " ANSI_COLOR_GREEN "add-transaction" ANSI_COLOR_RESET "              : Adds a placeholder transaction to pending transactions.\n");
+    printf("  " ANSI_COLOR_GREEN "mine-block" ANSI_COLOR_RESET "                   : Mines a new block with pending transactions.\n");
+    printf("  " ANSI_COLOR_GREEN "validate-chain" ANSI_COLOR_RESET "               : Validates the integrity of the blockchain.\n");
+    printf("  " ANSI_COLOR_GREEN "print-chain" ANSI_COLOR_RESET " [" ANSI_COLOR_YELLOW "--decrypt" ANSI_COLOR_RESET "]      : Prints all blocks. Use --decrypt to attempt medical data decryption.\n");
+    printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "                : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
+    printf("  " ANSI_COLOR_RED "exit | quit" ANSI_COLOR_RESET "                  : Exits the CLI application.\n");
+    printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "--------------------------\n" ANSI_COLOR_RESET);
 }
 
 // Interactive handlers (adapted from previous handle_* functions)
-// Removed blockchain_file_path parameter from function definition
 static void handle_create_blockchain_interactive(Blockchain** bc) {
     if (*bc != NULL) {
+        printf(ANSI_COLOR_YELLOW "Blockchain already exists in memory. Destroying and recreating...\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_WARN, "Blockchain already exists in memory. Destroying and recreating.");
         blockchain_destroy(*bc);
         *bc = NULL;
     }
+    printf(ANSI_COLOR_CYAN "Creating new blockchain...\n" ANSI_COLOR_RESET);
     *bc = blockchain_create();
     if (*bc) {
         logger_log(LOG_LEVEL_INFO, "Blockchain created successfully with a genesis block.");
-        printf("New blockchain created. Remember to 'save-blockchain' to persist it.\n");
+        printf(ANSI_COLOR_GREEN "New blockchain created successfully with a genesis block!\n" ANSI_COLOR_RESET);
+        printf("Remember to " ANSI_COLOR_YELLOW "'save-blockchain'" ANSI_COLOR_RESET " to persist it.\n");
     } else {
         logger_log(LOG_LEVEL_ERROR, "Failed to create blockchain.");
-        printf("Failed to create blockchain.\n");
+        printf(ANSI_COLOR_RED "Failed to create blockchain.\n" ANSI_COLOR_RESET);
     }
 }
 
 static void handle_load_blockchain_interactive(Blockchain** bc, const char* blockchain_file_path) {
     if (*bc != NULL) {
+        printf(ANSI_COLOR_YELLOW "A blockchain is already loaded. Discarding in-memory chain before loading...\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_WARN, "A blockchain is already loaded. Discarding in-memory chain before loading.");
         blockchain_destroy(*bc);
         *bc = NULL;
     }
 
+    printf(ANSI_COLOR_CYAN "Attempting to load blockchain from '%s'...\n" ANSI_COLOR_RESET, blockchain_file_path);
     *bc = disk_storage_load_blockchain(blockchain_file_path);
     if (*bc) {
         logger_log(LOG_LEVEL_INFO, "Blockchain loaded successfully from '%s' (length: %zu).", blockchain_file_path, (*bc)->length);
-        printf("Blockchain loaded successfully. Current chain length: %zu\n", (*bc)->length);
+        printf(ANSI_COLOR_GREEN "Blockchain loaded successfully! " ANSI_COLOR_RESET "Current chain length: " ANSI_COLOR_YELLOW "%zu\n" ANSI_COLOR_RESET, (*bc)->length);
     } else {
         logger_log(LOG_LEVEL_ERROR, "Failed to load blockchain from '%s'. It might not exist.", blockchain_file_path);
-        printf("Failed to load blockchain. It might not exist or is corrupted. Try 'create-blockchain'.\n");
+        printf(ANSI_COLOR_RED "Failed to load blockchain from '%s'. " ANSI_COLOR_RESET "It might not exist or is corrupted. Try " ANSI_COLOR_YELLOW "'create-blockchain'" ANSI_COLOR_RESET ".\n", blockchain_file_path);
     }
 }
 
 static void handle_save_blockchain_interactive(Blockchain* bc, const char* blockchain_file_path) {
     if (!bc) {
         logger_log(LOG_LEVEL_ERROR, "No blockchain in memory to save.");
-        printf("No blockchain is currently loaded in memory to save. Use 'create-blockchain' or 'load-blockchain' first.\n");
+        printf(ANSI_COLOR_RED "No blockchain is currently loaded in memory to save. " ANSI_COLOR_RESET "Use " ANSI_COLOR_YELLOW "'create-blockchain'" ANSI_COLOR_RESET " or " ANSI_COLOR_YELLOW "'load-blockchain'" ANSI_COLOR_RESET " first.\n");
         return;
     }
+    printf(ANSI_COLOR_CYAN "Saving blockchain to '%s'...\n" ANSI_COLOR_RESET, blockchain_file_path);
     if (disk_storage_save_blockchain(bc, blockchain_file_path) == 0) {
         logger_log(LOG_LEVEL_INFO, "Blockchain saved successfully to '%s'.", blockchain_file_path);
-        printf("Blockchain saved successfully.\n");
+        printf(ANSI_COLOR_GREEN "Blockchain saved successfully!\n" ANSI_COLOR_RESET);
     } else {
         logger_log(LOG_LEVEL_ERROR, "Failed to save blockchain to '%s'.", blockchain_file_path);
-        printf("Failed to save blockchain. Check logs for details.\n");
+        printf(ANSI_COLOR_RED "Failed to save blockchain. " ANSI_COLOR_RESET "Check logs for details.\n");
     }
 }
 
 static void handle_add_transaction_interactive(Blockchain* bc) {
     if (!bc) {
         logger_log(LOG_LEVEL_ERROR, "Blockchain not created/loaded. Cannot add transaction.");
-        printf("Blockchain not created or loaded. Use 'create-blockchain' or 'load-blockchain' first.\n");
+        printf(ANSI_COLOR_RED "Blockchain not created or loaded. " ANSI_COLOR_RESET "Use " ANSI_COLOR_YELLOW "'create-blockchain'" ANSI_COLOR_RESET " or " ANSI_COLOR_YELLOW "'load-blockchain'" ANSI_COLOR_RESET " first.\n");
         return;
     }
 
-    // Example fixed values for now; could extend to prompt user for input
     const char* sender = "cli_sender";
     const char* recipient = "cli_recipient";
     const char* medical_data = "{\"patient\":\"CLI-Patient\", \"diagnosis\":\"Interactive_Flu_Vaccine\"}";
     double value = 5.5;
 
-    printf("Adding a sample transaction...\n");
+    printf(ANSI_COLOR_CYAN "Adding a sample transaction...\n" ANSI_COLOR_RESET);
     Transaction* tx = transaction_create(sender, recipient, medical_data, value, g_dummy_encryption_key);
 
     if (tx) {
-        // Basic signing (placeholder)
         transaction_sign(tx, "CLI_PrivateKey_For_Signing_Tx");
-
         logger_log(LOG_LEVEL_INFO, "Sample transaction created.");
         if (blockchain_add_transaction_to_pending(bc, tx) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to add transaction to pending list.");
-            printf("Failed to add transaction to pending list.\n");
+            printf(ANSI_COLOR_RED "Failed to add transaction to pending list.\n" ANSI_COLOR_RESET);
             transaction_destroy(tx);
         } else {
             logger_log(LOG_LEVEL_INFO, "Transaction added to pending list. Mine a block to include it!");
-            printf("Transaction added to pending list. Remember to 'mine-block' to include it in the chain.\n");
+            printf(ANSI_COLOR_GREEN "Transaction added to pending list. " ANSI_COLOR_RESET "Remember to " ANSI_COLOR_YELLOW "'mine-block'" ANSI_COLOR_RESET " to include it in the chain.\n");
         }
     } else {
         logger_log(LOG_LEVEL_ERROR, "Failed to create sample transaction.");
-        printf("Failed to create sample transaction.\n");
+        printf(ANSI_COLOR_RED "Failed to create sample transaction.\n" ANSI_COLOR_RESET);
     }
 }
 
 static void handle_mine_block_interactive(Blockchain* bc) {
     if (!bc) {
         logger_log(LOG_LEVEL_ERROR, "Blockchain not created/loaded. Cannot mine block.");
-        printf("Blockchain not created or loaded. Use 'create-blockchain' or 'load-blockchain' first.\n");
+        printf(ANSI_COLOR_RED "Blockchain not created or loaded. " ANSI_COLOR_RESET "Use " ANSI_COLOR_YELLOW "'create-blockchain'" ANSI_COLOR_RESET " or " ANSI_COLOR_YELLOW "'load-blockchain'" ANSI_COLOR_RESET " first.\n");
         return;
     }
+    printf(ANSI_COLOR_CYAN "Attempting to mine a new block...\n" ANSI_COLOR_RESET);
     if (blockchain_mine_new_block(bc) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to mine a new block.");
-        printf("Failed to mine a new block. Check logs for details. (Perhaps no pending transactions?)\n");
+        printf(ANSI_COLOR_RED "Failed to mine a new block. " ANSI_COLOR_RESET "(Perhaps no pending transactions or an issue with Proof-of-Work?)\n");
     } else {
         logger_log(LOG_LEVEL_INFO, "New block mined successfully!");
-        printf("New block mined and added to the chain!\n");
-        printf("Current chain length: %zu\n", bc->length);
+        printf(ANSI_COLOR_GREEN "New block mined and added to the chain!\n" ANSI_COLOR_RESET);
+        printf("Current chain length: " ANSI_COLOR_YELLOW "%zu\n" ANSI_COLOR_RESET, bc->length);
     }
 }
 
 static void handle_validate_chain_interactive(Blockchain* bc) {
     if (!bc) {
         logger_log(LOG_LEVEL_ERROR, "Blockchain not created/loaded. Nothing to validate.");
-        printf("Blockchain not created or loaded. Nothing to validate.\n");
+        printf(ANSI_COLOR_RED "Blockchain not created or loaded. Nothing to validate.\n" ANSI_COLOR_RESET);
         return;
     }
-    printf("Validating blockchain...\n");
+    printf(ANSI_COLOR_CYAN "Validating blockchain integrity...\n" ANSI_COLOR_RESET);
     if (blockchain_is_valid(bc) == 0) {
         logger_log(LOG_LEVEL_INFO, "Blockchain is valid.");
-        printf("Blockchain is VALID!\n");
+        printf(ANSI_COLOR_GREEN "Blockchain is VALID!\n" ANSI_COLOR_RESET);
     } else {
         logger_log(LOG_LEVEL_ERROR, "Blockchain is INVALID!");
-        printf("Blockchain is INVALID! Check logs for details on potential tampering.\n");
+        printf(ANSI_COLOR_RED "Blockchain is INVALID! " ANSI_COLOR_RESET "Check logs for details on potential tampering.\n");
     }
 }
 
 static void handle_print_chain_interactive(Blockchain* bc, const uint8_t* encryption_key) {
     if (bc == NULL || bc->length == 0) {
         logger_log(LOG_LEVEL_INFO, "Blockchain is empty, nothing to print.");
-        printf("Blockchain is empty, nothing to print.\n");
+        printf(ANSI_COLOR_YELLOW "Blockchain is empty, nothing to print.\n" ANSI_COLOR_RESET);
         return;
     }
-    printf("\n--- Printing Blockchain (Length: %zu) ---\n", bc->length);
+    printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "\n--- Printing Blockchain (Length: %zu) ---\n" ANSI_COLOR_RESET, bc->length);
     for (size_t i = 0; i < bc->length; ++i) {
         Block* b = blockchain_get_block_by_index(bc, i);
         if (b) {
-            // block_print now handles decryption based on 'encryption_key'
-            block_print(b, encryption_key);
+            printf(ANSI_COLOR_CYAN "\n--- Block #%zu ---\n" ANSI_COLOR_RESET, i);
+            block_print(b, encryption_key); // block_print will use colors internally
+            printf(ANSI_COLOR_CYAN "-----------------\n" ANSI_COLOR_RESET);
         } else {
             logger_log(LOG_LEVEL_ERROR, "Failed to retrieve block at index %zu for printing.", i);
         }
     }
-    printf("--- End of Blockchain Print ---\n");
+    printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "--- End of Blockchain Print ---\n" ANSI_COLOR_RESET);
 }
 
 static void handle_set_log_level_interactive() {
     char level_str[20];
-    printf("Enter new log level (DEBUG, INFO, WARN, ERROR, FATAL, NONE): ");
+    printf(ANSI_COLOR_CYAN "Enter new log level (DEBUG, INFO, WARN, ERROR, FATAL, NONE): " ANSI_COLOR_RESET);
     if (fgets(level_str, sizeof(level_str), stdin) == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Error reading log level input.");
-        printf("Failed to read log level.\n");
+        printf(ANSI_COLOR_RED "Failed to read log level.\n" ANSI_COLOR_RESET);
         return;
     }
-    level_str[strcspn(level_str, "\n")] = 0; // Remove newline
+    level_str[strcspn(level_str, "\n")] = 0;
 
-    to_lowercase(level_str); // Convert input to lowercase
+    to_lowercase(level_str);
 
     if (strcmp(level_str, "debug") == 0) {
         logger_set_level(LOG_LEVEL_DEBUG);
@@ -307,10 +310,9 @@ static void handle_set_log_level_interactive() {
         logger_set_level(LOG_LEVEL_NONE);
     } else {
         logger_log(LOG_LEVEL_WARN, "Unknown log level: '%s'. Keeping current level.", level_str);
-        printf("Unknown log level: '%s'. Valid levels are DEBUG, INFO, WARN, ERROR, FATAL, NONE.\n", level_str);
+        printf(ANSI_COLOR_RED "Unknown log level: '%s'. " ANSI_COLOR_RESET "Valid levels are " ANSI_COLOR_YELLOW "DEBUG, INFO, WARN, ERROR, FATAL, NONE" ANSI_COLOR_RESET ".\n", level_str);
         return;
     }
     logger_log(LOG_LEVEL_INFO, "Log level set to %s.", level_str);
-    printf("Log level set to %s.\n", level_str);
+    printf(ANSI_COLOR_GREEN "Log level set to %s.\n" ANSI_COLOR_RESET, level_str);
 }
-// Add a newline character at the very end of the file

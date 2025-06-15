@@ -2,6 +2,7 @@
 #include "transaction.h"
 #include "../crypto/hasher.h" // For SHA256 and SHA256_HEX_LEN, SHA256_HASH_SIZE
 #include "../utils/logger.h"
+#include "../utils/colors.h" // <--- NEW: Include colors header
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -372,27 +373,28 @@ char* transaction_decrypt_medical_data(const Transaction* tx, const uint8_t encr
  */
 void transaction_print(const Transaction* tx, const uint8_t encryption_key[AES_256_KEY_SIZE]) {
     if (tx == NULL) {
-        printf("NULL Transaction\n");
+        printf(ANSI_COLOR_RED "NULL Transaction\n" ANSI_COLOR_RESET);
         return;
     }
-    printf("  Transaction ID: %s\n", hasher_bytes_to_hex(tx->transaction_id, SHA256_HASH_SIZE)); // Convert to hex for printing
-    printf("  Sender: %s\n", tx->sender_id);
-    printf("  Recipient: %s\n", tx->recipient_id);
-    printf("  Timestamp: %ld (%s)", (long)tx->timestamp, ctime(&tx->timestamp)); // ctime adds newline
-    printf("  Value: %.4f\n", tx->value);
+    printf(ANSI_COLOR_BLUE "  Transaction ID: " ANSI_COLOR_RESET "%s\n", hasher_bytes_to_hex(tx->transaction_id, SHA256_HASH_SIZE)); // Convert to hex for printing
+    printf(ANSI_COLOR_BLUE "  Sender:         " ANSI_COLOR_RESET "%s\n", tx->sender_id);
+    printf(ANSI_COLOR_BLUE "  Recipient:      " ANSI_COLOR_RESET "%s\n", tx->recipient_id);
+    printf(ANSI_COLOR_BLUE "  Timestamp:      " ANSI_COLOR_RESET "%ld (" ANSI_COLOR_BRIGHT_BLACK "%s" ANSI_COLOR_RESET ")", (long)tx->timestamp, ctime(&tx->timestamp)); // ctime adds newline
+    printf(ANSI_COLOR_BLUE "  Value:          " ANSI_COLOR_RESET "%.4f\n", tx->value);
 
     // Attempt to decrypt and print medical data
     if (encryption_key != NULL && tx->encrypted_medical_data != NULL) {
         char* decrypted_data = transaction_decrypt_medical_data(tx, encryption_key);
         if (decrypted_data != NULL) {
-            printf("  Medical Data (Decrypted): %s\n", decrypted_data);
+            printf(ANSI_COLOR_MAGENTA "  Medical Data (Decrypted): " ANSI_COLOR_GREEN "%s\n" ANSI_COLOR_RESET, decrypted_data);
             free(decrypted_data); // Free the dynamically allocated decrypted string
         } else {
-            printf("  Medical Data (Encrypted, decryption failed).\n");
+            printf(ANSI_COLOR_MAGENTA "  Medical Data (Encrypted, " ANSI_COLOR_RED "decryption failed" ANSI_COLOR_RESET ").\n");
         }
     } else {
-        printf("  Medical Data (Encrypted, decryption key not provided or data missing).\n");
+        printf(ANSI_COLOR_MAGENTA "  Medical Data (Encrypted, decryption key not provided or data missing).\n" ANSI_COLOR_RESET);
     }
 
-    printf("  Signature: %s\n", hasher_bytes_to_hex(tx->signature, SHA256_HASH_SIZE)); // Convert to hex for printing
+    printf(ANSI_COLOR_BLUE "  Signature:      " ANSI_COLOR_RESET "%s\n", hasher_bytes_to_hex(tx->signature, SHA256_HASH_SIZE)); // Convert to hex for printing
+    printf(ANSI_COLOR_BLUE "--------------------------------------------------\n" ANSI_COLOR_RESET);
 }

@@ -29,7 +29,22 @@ CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
 # Include paths for all source files.
 # By including -I$(SRC_DIR), all includes in C files should be relative to 'src/'.
 # E.g., #include "core/blockchain.h", #include "config/config.h"
-CFLAGS_INCLUDE = -I$(SRC_DIR) $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
+# IMPORTANT: Explicitly adding all subdirectories of SRC_DIR to the include path
+# This ensures that headers like "utils/colors.h" are found correctly,
+# even if included from a different subdirectory like "core/block.c".
+CFLAGS_INCLUDE = -I$(SRC_DIR) \
+                 -I$(SRC_DIR)/core \
+                 -I$(SRC_DIR)/crypto \
+                 -I$(SRC_DIR)/mining \
+                 -I$(SRC_DIR)/security \
+                 -I$(SRC_DIR)/medical \
+                 -I$(SRC_DIR)/contracts \
+                 -I$(SRC_DIR)/storage \
+                 -I$(SRC_DIR)/network \
+                 -I$(SRC_DIR)/utils \
+                 -I$(SRC_DIR)/cli \
+                 -I$(SRC_DIR)/config \
+                 $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
 
 # Libraries specific to the main application (release/debug builds)
 LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread $(shell pkg-config --libs json-c)
@@ -49,7 +64,7 @@ MEDICAL_SOURCES = $(wildcard $(SRC_DIR)/medical/*.c)
 CONTRACTS_SOURCES = $(wildcard $(SRC_DIR)/contracts/*.c)
 STORAGE_SOURCES = $(wildcard $(SRC_DIR)/storage/*.c)
 NETWORK_SOURCES = $(wildcard $(SRC_DIR)/network/*.c)
-UTILS_SOURCES = $(wildcard $(SRC_DIR)/utils/*.c)
+UTILS_SOURCES = $(wildcard $(SRC_DIR)/utils/*.c) # This will now pick up colors.c
 CLI_SOURCES = $(wildcard $(SRC_DIR)/cli/*.c)
 CONFIG_SOURCES = $(wildcard $(SRC_DIR)/config/*.c)
 
@@ -71,7 +86,7 @@ MEDICAL_OBJECTS = $(patsubst $(SRC_DIR)/medical/%.c,$(OBJ_DIR)/medical/%.o,$(MED
 CONTRACTS_OBJECTS = $(patsubst $(SRC_DIR)/contracts/%.c,$(OBJ_DIR)/contracts/%.o,$(CONTRACTS_SOURCES))
 STORAGE_OBJECTS = $(patsubst $(SRC_DIR)/storage/%.c,$(OBJ_DIR)/storage/%.o,$(STORAGE_SOURCES))
 NETWORK_OBJECTS = $(patsubst $(SRC_DIR)/network/%.c,$(OBJ_DIR)/network/%.o,$(NETWORK_SOURCES))
-UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES))
+UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES)) # This will now include obj/utils/colors.o
 CLI_OBJECTS = $(patsubst $(SRC_DIR)/cli/%.c,$(OBJ_DIR)/cli/%.o,$(CLI_SOURCES))
 CONFIG_OBJECTS = $(patsubst $(SRC_DIR)/config/%.c,$(OBJ_DIR)/config/%.o,$(CONFIG_SOURCES))
 

@@ -16,3 +16,35 @@
 [2025-06-15 15:35:34] [INFO] New block mined successfully!
 [2025-06-15 15:36:11] [INFO] Exiting CLI.
 [2025-06-15 15:36:11] [INFO] Blockchain destroyed.
+[2025-06-15 16:21:49] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-15 16:22:06] [INFO] Blockchain is empty, nothing to print.
+[2025-06-15 16:22:21] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-15 16:22:21] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-15 16:22:21] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-15 16:22:56] [INFO] Sample transaction created.
+[2025-06-15 16:23:18] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-15 16:23:22] [INFO] Blockchain is empty, nothing to print.
+[2025-06-15 16:23:30] [ERROR] Blockchain not created/loaded. Cannot add transaction.
+[2025-06-15 16:23:39] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-15 16:23:39] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-15 16:23:39] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-15 16:23:44] [INFO] Sample transaction created.
+[2025-06-15 16:23:44] [INFO] Transaction added to pending list. Total pending: 1.
+[2025-06-15 16:23:44] [INFO] Transaction added to pending list. Mine a block to include it!
+[2025-06-15 16:23:51] [INFO] Attempting to mine new block #1 with 1 transactions...
+[2025-06-15 16:23:51] [INFO] Mining Block #1 with difficulty 0 (target prefix: '').
+[2025-06-15 16:23:51] [INFO] Block #1 mined successfully! Nonce: 0, Hash: 50d66e7689c2cebce1caccdc7646d5784bc299b9c9aec17353f7c705455a0e87
+[2025-06-15 16:23:51] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-15 16:23:51] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-15 16:23:51] [INFO] New block mined successfully!
+[2025-06-15 16:29:42] [INFO] Log level set to debug.
+[2025-06-15 16:30:01] [DEBUG] Block #0 is valid.
+[2025-06-15 16:30:01] [DEBUG] Transaction 7920dd527cb2daf1a8aefe10f9fb1723afecc8547d2e64eca53891f267e8e0a6 is valid.
+[2025-06-15 16:30:01] [DEBUG] Block #1 is valid.
+[2025-06-15 16:30:01] [INFO] Blockchain is valid.
+[2025-06-15 16:30:52] [INFO] Exiting CLI.
+[2025-06-15 16:30:52] [DEBUG] Destroying Block #0.
+[2025-06-15 16:30:52] [DEBUG] Block destroyed.
+[2025-06-15 16:30:52] [DEBUG] Destroying Block #1.
+[2025-06-15 16:30:52] [DEBUG] Transaction destroyed.
+[2025-06-15 16:30:52] [DEBUG] Block destroyed.
