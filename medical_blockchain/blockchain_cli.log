@@ -48,3 +48,80 @@
 [2025-06-15 16:30:52] [DEBUG] Destroying Block #1.
 [2025-06-15 16:30:52] [DEBUG] Transaction destroyed.
 [2025-06-15 16:30:52] [DEBUG] Block destroyed.
+[2025-06-16 11:13:54] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 11:13:54] [INFO] Network module initialized.
+[2025-06-16 11:14:16] [INFO] Network listener started on port 8080. Waiting for connections...
+[2025-06-16 11:14:16] [INFO] Listener: Calling accept() for new connection...
+[2025-06-16 11:14:54] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 11:14:54] [INFO] Network module initialized.
+[2025-06-16 11:15:16] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-16 11:15:16] [INFO] Peer added: 127.0.0.1:51168 (FD: 5). Total peers: 1
+[2025-06-16 11:15:16] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-16 11:15:16] [INFO] Accepted new connection from 127.0.0.1:51168. FD: 5
+[2025-06-16 11:16:16] [INFO] Received message from FD 5: "Hello This is Joshua, the best blockchain Engineer in Africa."
+[2025-06-16 11:16:16] [INFO] Listener: Calling accept() for new connection...
+[2025-06-16 11:19:50] [INFO] Peer added: 127.0.0.1:8080 (FD: 5). Total peers: 2
+[2025-06-16 11:19:50] [INFO] Peer added: 127.0.0.1:51247 (FD: 6). Total peers: 2
+[2025-06-16 11:19:50] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 5).
+[2025-06-16 11:19:50] [INFO] Accepted new connection from 127.0.0.1:51247. FD: 6
+[2025-06-16 14:38:48] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:38:48] [INFO] Network module initialized.
+[2025-06-16 14:39:34] [ERROR] Failed to connect to peer 127.0.0.1:8080: Connection refused
+[2025-06-16 14:39:53] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-16 14:39:53] [INFO] Listener thread started on port 8080.
+[2025-06-16 14:39:53] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-16 14:40:05] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:40:05] [INFO] Network module initialized.
+[2025-06-16 14:40:24] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-16 14:40:24] [INFO] Peer added: 127.0.0.1:54881 (FD: 5). Total peers: 1
+[2025-06-16 14:40:24] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-16 14:40:24] [INFO] Listener thread: Accepted new connection from 127.0.0.1:54881. FD: 5
+[2025-06-16 14:40:24] [INFO] Listener thread: Peer FD 5 disconnected after connecting.
+[2025-06-16 14:41:15] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:41:15] [INFO] Network module initialized.
+[2025-06-16 14:41:29] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-16 14:41:29] [INFO] Peer added: 127.0.0.1:54894 (FD: 6). Total peers: 2
+[2025-06-16 14:41:29] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-16 14:41:29] [INFO] Listener thread: Accepted new connection from 127.0.0.1:54894. FD: 6
+[2025-06-16 14:41:29] [INFO] Listener thread: Peer FD 6 disconnected after connecting.
+[2025-06-16 14:42:01] [WARN] Unknown command: 'sent-test-message'. Type 'help' for options.
+[2025-06-16 14:46:07] [INFO] Exiting CLI.
+[2025-06-16 14:46:07] [INFO] Shutting down network module...
+[2025-06-16 14:46:07] [INFO] Listener thread was not running.
+[2025-06-16 14:46:07] [INFO] Closed connection to peer 127.0.0.1:8080 (FD: -1).
+[2025-06-16 14:46:07] [INFO] All peer connections closed.
+[2025-06-16 14:48:46] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:48:46] [INFO] Network module initialized.
+[2025-06-16 14:48:55] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-16 14:48:55] [INFO] Listener thread started on port 8080.
+[2025-06-16 14:48:55] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-16 14:49:30] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:49:30] [INFO] Network module initialized.
+[2025-06-16 14:49:47] [ERROR] Failed to connect to peer 127.0.0.1:8080: Operation now in progress
+[2025-06-16 14:50:53] [ERROR] Failed to connect to peer 127.0.0.1:8080: Operation now in progress
+[2025-06-16 14:50:53] [INFO] Peer added: 127.0.0.1:55080 (FD: 5). Total peers: 1
+[2025-06-16 14:50:53] [INFO] Listener thread: Accepted new connection from 127.0.0.1:55080. FD: 5
+[2025-06-16 14:50:53] [INFO] Peer FD 5 disconnected gracefully.
+[2025-06-16 14:50:53] [INFO] Peer removed: 127.0.0.1:55080 (FD: 5).
+[2025-06-16 14:50:53] [INFO] Listener thread: Cleared FD 5 from master_fds (disconnected/error).
+[2025-06-16 14:51:52] [ERROR] Failed to connect to peer 127.0.0.1:8080: Operation now in progress
+[2025-06-16 14:55:11] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:55:11] [INFO] Network module initialized.
+[2025-06-16 14:55:28] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-16 14:55:28] [INFO] Listener thread started on port 8080.
+[2025-06-16 14:55:28] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-16 14:55:33] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:55:33] [INFO] Network module initialized.
+[2025-06-16 14:55:44] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-16 14:55:44] [INFO] Peer added: 127.0.0.1:55166 (FD: 5). Total peers: 1
+[2025-06-16 14:55:44] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-16 14:55:44] [INFO] Listener thread: Accepted new connection from 127.0.0.1:55166. FD: 5
+[2025-06-16 14:56:26] [INFO] Listener thread: Received message from FD 5: "Hello from Node2"
+[2025-06-16 14:57:03] [INFO] Listener thread: Received message from FD 5: "Joshua is the best engineer on earth"
+[2025-06-16 14:57:10] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-16 14:57:10] [INFO] Network module initialized.
+[2025-06-16 14:58:36] [ERROR] Failed to connect to peer 127.0.0.2:8080: Operation timed out
+[2025-06-16 14:59:13] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-16 14:59:13] [INFO] Peer added: 127.0.0.1:55225 (FD: 6). Total peers: 2
+[2025-06-16 14:59:13] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-16 14:59:13] [INFO] Listener thread: Accepted new connection from 127.0.0.1:55225. FD: 6

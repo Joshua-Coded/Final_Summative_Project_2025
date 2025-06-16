@@ -1,13 +1,14 @@
 // src/cli/cli.c
 #include "cli/cli.h"
 #include "utils/logger.h"
-#include "utils/colors.h" // <--- NEW: Include colors header
+#include "utils/colors.h"
 #include "core/blockchain.h"
 #include "core/block.h"
 #include "core/transaction.h"
 #include "security/encryption.h"
 #include "config/config.h"
 #include "storage/disk_storage.h"
+#include "network/network.h" // <--- NEW: Include network header
 
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +26,12 @@ static void handle_print_chain_interactive(Blockchain* bc, const uint8_t* encryp
 static void handle_set_log_level_interactive();
 static void handle_save_blockchain_interactive(Blockchain* bc, const char* blockchain_file_path);
 static void handle_load_blockchain_interactive(Blockchain** bc, const char* blockchain_file_path);
+
+// NEW: Network command handlers
+static void handle_start_listener_interactive(void);
+static void handle_connect_peer_interactive(void);
+static void handle_send_test_message_interactive(void); // Simple message sending for testing
+
 
 // A dummy encryption key for demonstration purposes.
 static uint8_t g_dummy_encryption_key[AES_256_KEY_SIZE];
@@ -48,9 +55,17 @@ int cli_run() {
 
     logger_log(LOG_LEVEL_INFO, "Blockchain CLI started (interactive mode).");
 
+    // NEW: Initialize network module
+    if (network_init() != 0) {
+        logger_log(LOG_LEVEL_FATAL, "Failed to initialize network module. Exiting.");
+        logger_shutdown();
+        return EXIT_FAILURE;
+    }
+
     if (!g_key_initialized) {
         if (encryption_generate_random_bytes(g_dummy_encryption_key, AES_256_KEY_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to generate dummy encryption key for CLI.");
+            network_shutdown(); // Shutdown network if init fails
             logger_shutdown();
             return 1;
         }
@@ -60,6 +75,7 @@ int cli_run() {
 
     if (disk_storage_ensure_dir(DEFAULT_DATA_DIR) != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to create blockchain data directory: %s. Exiting.", DEFAULT_DATA_DIR);
+        network_shutdown(); // Shutdown network if init fails
         logger_shutdown();
         return EXIT_FAILURE;
     }
@@ -111,7 +127,17 @@ int cli_run() {
             }
         } else if (strcmp(token, "set-log-level") == 0) {
             handle_set_log_level_interactive();
-        } else if (strcmp(token, "exit") == 0 || strcmp(token, "quit") == 0) {
+        }
+        // NEW: Network Commands
+        else if (strcmp(token, "start-listener") == 0) {
+            handle_start_listener_interactive();
+        } else if (strcmp(token, "connect-peer") == 0) {
+            handle_connect_peer_interactive();
+        } else if (strcmp(token, "send-test-message") == 0) {
+            handle_send_test_message_interactive();
+        }
+        // End NEW Network Commands
+        else if (strcmp(token, "exit") == 0 || strcmp(token, "quit") == 0) {
             running = 0;
             printf(ANSI_COLOR_CYAN "Exiting Medical Blockchain CLI. Goodbye!\n" ANSI_COLOR_RESET);
             logger_log(LOG_LEVEL_INFO, "Exiting CLI.");
@@ -125,6 +151,7 @@ int cli_run() {
         blockchain_destroy(g_current_blockchain);
         g_current_blockchain = NULL;
     }
+    network_shutdown(); // NEW: Shutdown network module
     logger_shutdown();
     return 0;
 }
@@ -132,15 +159,20 @@ int cli_run() {
 static void print_help_menu() {
     printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "\n--- Available Commands ---\n" ANSI_COLOR_RESET);
     printf("  " ANSI_COLOR_YELLOW "help" ANSI_COLOR_RESET "                         : Display this help menu.\n");
-    printf("  " ANSI_COLOR_GREEN "create-blockchain" ANSI_COLOR_RESET "            : Creates a new blockchain with a genesis block (overwrites if exists).\n");
-    printf("  " ANSI_COLOR_GREEN "load-blockchain" ANSI_COLOR_RESET "              : Loads an existing blockchain from disk.\n");
-    printf("  " ANSI_COLOR_GREEN "save-blockchain" ANSI_COLOR_RESET "              : Saves the current blockchain to disk.\n");
-    printf("  " ANSI_COLOR_GREEN "add-transaction" ANSI_COLOR_RESET "              : Adds a placeholder transaction to pending transactions.\n");
+    printf("  " ANSI_COLOR_GREEN "create-blockchain" ANSI_COLOR_RESET "          : Creates a new blockchain with a genesis block (overwrites if exists).\n");
+    printf("  " ANSI_COLOR_GREEN "load-blockchain" ANSI_COLOR_RESET "            : Loads an existing blockchain from disk.\n");
+    printf("  " ANSI_COLOR_GREEN "save-blockchain" ANSI_COLOR_RESET "            : Saves the current blockchain to disk.\n");
+    printf("  " ANSI_COLOR_GREEN "add-transaction" ANSI_COLOR_RESET "            : Adds a placeholder transaction to pending transactions.\n");
     printf("  " ANSI_COLOR_GREEN "mine-block" ANSI_COLOR_RESET "                   : Mines a new block with pending transactions.\n");
-    printf("  " ANSI_COLOR_GREEN "validate-chain" ANSI_COLOR_RESET "               : Validates the integrity of the blockchain.\n");
+    printf("  " ANSI_COLOR_GREEN "validate-chain" ANSI_COLOR_RESET "             : Validates the integrity of the blockchain.\n");
     printf("  " ANSI_COLOR_GREEN "print-chain" ANSI_COLOR_RESET " [" ANSI_COLOR_YELLOW "--decrypt" ANSI_COLOR_RESET "]      : Prints all blocks. Use --decrypt to attempt medical data decryption.\n");
-    printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "                : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
-    printf("  " ANSI_COLOR_RED "exit | quit" ANSI_COLOR_RESET "                  : Exits the CLI application.\n");
+    printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "              : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
+    // NEW Network Commands
+    printf("  " ANSI_COLOR_BLUE "start-listener <port>" ANSI_COLOR_RESET "      : Starts listening for incoming connections on a port.\n");
+    printf("  " ANSI_COLOR_BLUE "connect-peer <ip> <port>" ANSI_COLOR_RESET ": Connects to a remote blockchain peer.\n");
+    printf("  " ANSI_COLOR_BLUE "send-test-message <msg>" ANSI_COLOR_RESET ": Sends a test message to all connected peers.\n");
+    // End NEW Network Commands
+    printf("  " ANSI_COLOR_RED "exit | quit" ANSI_COLOR_RESET "                : Exits the CLI application.\n");
     printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "--------------------------\n" ANSI_COLOR_RESET);
 }
 
@@ -315,4 +347,82 @@ static void handle_set_log_level_interactive() {
     }
     logger_log(LOG_LEVEL_INFO, "Log level set to %s.", level_str);
     printf(ANSI_COLOR_GREEN "Log level set to %s.\n" ANSI_COLOR_RESET, level_str);
+}
+
+// --- NEW: Network Command Handlers ---
+
+static void handle_start_listener_interactive() {
+    char *port_str = strtok(NULL, " ");
+    int port = DEFAULT_PORT; // Use default if no port specified
+
+    if (port_str != NULL) {
+        port = atoi(port_str);
+        if (port <= 0 || port > 65535) {
+            printf(ANSI_COLOR_RED "Invalid port number. Please use a number between 1 and 65535.\n" ANSI_COLOR_RESET);
+            logger_log(LOG_LEVEL_ERROR, "Invalid port number entered: %s", port_str);
+            return;
+        }
+    }
+
+    printf(ANSI_COLOR_CYAN "Attempting to start listener on port %d...\n" ANSI_COLOR_RESET, port);
+    if (network_start_listener(port) != 0) {
+        printf(ANSI_COLOR_RED "Failed to start network listener.\n" ANSI_COLOR_RESET);
+    } else {
+        // Updated message to reflect that the CLI remains responsive due to threading.
+        printf(ANSI_COLOR_GREEN "Network listener started successfully in the background!\n" ANSI_COLOR_RESET);
+        printf("You can now continue using the CLI or connect from another node.\n");
+    }
+}
+
+static void handle_connect_peer_interactive() {
+    char *ip_address = strtok(NULL, " ");
+    char *port_str = strtok(NULL, " ");
+
+    if (ip_address == NULL || port_str == NULL) {
+        printf(ANSI_COLOR_RED "Usage: connect-peer <ip_address> <port>\n" ANSI_COLOR_RESET);
+        return;
+    }
+
+    int port = atoi(port_str);
+    if (port <= 0 || port > 65535) {
+        printf(ANSI_COLOR_RED "Invalid port number. Please use a number between 1 and 65535.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Invalid port number entered for connect-peer: %s", port_str);
+        return;
+    }
+
+    printf(ANSI_COLOR_CYAN "Attempting to connect to peer %s:%d...\n" ANSI_COLOR_RESET, ip_address, port);
+    network_connect_to_peer(ip_address, port);
+}
+
+static void handle_send_test_message_interactive() {
+    // Read the rest of the line as the message
+    char *message_content = strtok(NULL, "");
+
+    if (message_content == NULL || strlen(message_content) == 0) {
+        printf(ANSI_COLOR_RED "Usage: send-test-message <your_message_here>\n" ANSI_COLOR_RESET);
+        return;
+    }
+
+    // Trim leading space if any (strtok with "" might leave it)
+    while (*message_content == ' ') {
+        message_content++;
+    }
+
+    int peer_fd = network_get_first_peer_socket_fd(); // Get the FD of the first connected peer
+    if (peer_fd == -1) {
+        printf(ANSI_COLOR_YELLOW "No active peers to send messages to. Use 'connect-peer' first.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_WARN, "No active peers to send test message.");
+        return;
+    }
+
+    printf(ANSI_COLOR_CYAN "Sending test message to peer (FD: %d): \"%s\"\n" ANSI_COLOR_RESET, peer_fd, message_content);
+    ssize_t sent_bytes = network_send_message(peer_fd, (const uint8_t*)message_content, strlen(message_content));
+
+    if (sent_bytes > 0) {
+        printf(ANSI_COLOR_GREEN "Message sent successfully (%zd bytes).\n" ANSI_COLOR_RESET, sent_bytes);
+    } else if (sent_bytes == 0) {
+        printf(ANSI_COLOR_YELLOW "No bytes sent (message might be empty).\n" ANSI_COLOR_RESET);
+    } else {
+        printf(ANSI_COLOR_RED "Failed to send message.\n" ANSI_COLOR_RESET);
+    }
 }
