@@ -68,8 +68,6 @@ brew install clang-format cppcheck git
 
 ### Quick Setup
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/medical-blockchain.git
 cd medical-blockchain
 
 # Create required directories
