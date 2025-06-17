@@ -20,11 +20,25 @@ CC = clang # Explicitly use clang, common on macOS. Or keep gcc if it maps to cl
 
 # Common CFLAGS for all builds
 CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result
-CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE
+CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fPIC # -fPIC for shared libraries if needed, good for PIE
 
 # Build-specific CFLAGS
 CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG
 CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
+
+# --------------------------------------------------------------------------
+# --- CJSON CONFIGURATION CHANGES ---
+# --------------------------------------------------------------------------
+
+# Define where your cJSON library headers are located
+# Adjust this path based on your cJSON installation.
+# Common locations: /usr/local/include, /usr/include, or a path relative to your project (e.g., lib/cjson)
+CJSON_INC_PATH = /usr/local/include
+
+# CJSON Library path (where libcjson.a or libcjson.so resides)
+# Adjust this path based on your cJSON installation.
+# Common locations: /usr/local/lib, /usr/lib
+CJSON_LIB_PATH = /usr/local/lib
 
 # Include paths for all source files.
 # By including -I$(SRC_DIR), all includes in C files should be relative to 'src/'.
@@ -44,13 +58,18 @@ CFLAGS_INCLUDE = -I$(SRC_DIR) \
                  -I$(SRC_DIR)/utils \
                  -I$(SRC_DIR)/cli \
                  -I$(SRC_DIR)/config \
-                 $(shell pkg-config --cflags libcrypto) $(shell pkg-config --cflags json-c)
+                 -I$(CJSON_INC_PATH) \
+                 $(shell pkg-config --cflags libcrypto)
 
 # Libraries specific to the main application (release/debug builds)
-LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread $(shell pkg-config --libs json-c)
+LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread -L$(CJSON_LIB_PATH) -lcjson
 
 # Libraries specific to the test build
-LIBS_TEST = -lcunit -L/usr/local/lib
+LIBS_TEST = -lcunit -L/usr/local/lib -L$(CJSON_LIB_PATH) -lcjson
+
+# --------------------------------------------------------------------------
+# --- END CJSON CONFIGURATION CHANGES ---
+# --------------------------------------------------------------------------
 
 # Linker flags for security hardening
 LDFLAGS_SECURITY = -fPIE
@@ -64,7 +83,7 @@ MEDICAL_SOURCES = $(wildcard $(SRC_DIR)/medical/*.c)
 CONTRACTS_SOURCES = $(wildcard $(SRC_DIR)/contracts/*.c)
 STORAGE_SOURCES = $(wildcard $(SRC_DIR)/storage/*.c)
 NETWORK_SOURCES = $(wildcard $(SRC_DIR)/network/*.c)
-UTILS_SOURCES = $(wildcard $(SRC_DIR)/utils/*.c) # This will now pick up colors.c
+UTILS_SOURCES = $(wildcard $(SRC_DIR)/utils/*.c)
 CLI_SOURCES = $(wildcard $(SRC_DIR)/cli/*.c)
 CONFIG_SOURCES = $(wildcard $(SRC_DIR)/config/*.c)
 
@@ -76,8 +95,6 @@ ALL_SOURCES = $(CORE_SOURCES) $(CRYPTO_SOURCES) $(MINING_SOURCES) \
               $(CLI_SOURCES) $(CONFIG_SOURCES) $(MAIN_SOURCE)
 
 # Object files
-# These patterns handle creating objects in specific subdirectories under obj/
-# They convert `src/dir/file.c` to `obj/dir/file.o`
 CORE_OBJECTS = $(patsubst $(SRC_DIR)/core/%.c,$(OBJ_DIR)/core/%.o,$(CORE_SOURCES))
 CRYPTO_OBJECTS = $(patsubst $(SRC_DIR)/crypto/%.c,$(OBJ_DIR)/crypto/%.o,$(CRYPTO_SOURCES))
 MINING_OBJECTS = $(patsubst $(SRC_DIR)/mining/%.c,$(OBJ_DIR)/mining/%.o,$(MINING_SOURCES))
@@ -86,7 +103,7 @@ MEDICAL_OBJECTS = $(patsubst $(SRC_DIR)/medical/%.c,$(OBJ_DIR)/medical/%.o,$(MED
 CONTRACTS_OBJECTS = $(patsubst $(SRC_DIR)/contracts/%.c,$(OBJ_DIR)/contracts/%.o,$(CONTRACTS_SOURCES))
 STORAGE_OBJECTS = $(patsubst $(SRC_DIR)/storage/%.c,$(OBJ_DIR)/storage/%.o,$(STORAGE_SOURCES))
 NETWORK_OBJECTS = $(patsubst $(SRC_DIR)/network/%.c,$(OBJ_DIR)/network/%.o,$(NETWORK_SOURCES))
-UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES)) # This will now include obj/utils/colors.o
+UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES))
 CLI_OBJECTS = $(patsubst $(SRC_DIR)/cli/%.c,$(OBJ_DIR)/cli/%.o,$(CLI_SOURCES))
 CONFIG_OBJECTS = $(patsubst $(SRC_DIR)/config/%.c,$(OBJ_DIR)/config/%.o,$(CONFIG_SOURCES))
 
@@ -125,7 +142,6 @@ release: clean $(TARGET)
 	@strip $(TARGET)
 
 # Create directories
-# Ensure all nested object directories exist before compilation
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)/{core,crypto,mining,security,medical,contracts,storage,network,utils,cli,config,test}
 
@@ -138,11 +154,7 @@ $(TARGET): $(ALL_OBJECTS) | $(BIN_DIR)
 	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LDFLAGS)
 	@echo "Build completed successfully!"
 
-# **CRITICAL FIX HERE:**
-# This general rule compiles any .c file found in a subdirectory of SRC_DIR
-# into a .o file in the corresponding subdirectory of OBJ_DIR.
-# The `*` in the dependency will match the path relative to SRC_DIR (e.g., 'core/block')
-# and the target will construct the full path (e.g., 'obj/core/block.o').
+# General rule to compile .c files into .o files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) $(CFLAGS_INCLUDE) -c $< -o $@
@@ -153,7 +165,6 @@ $(TEST_TARGET): $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) | $
 	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST)
 
 # Compile test files
-# Test object files are placed under $(OBJ_DIR)/test/
 $(OBJ_DIR)/test/%.o: $(TEST_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling test $<..."
 	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) -c $< -o $@

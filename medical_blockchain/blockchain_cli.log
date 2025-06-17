@@ -125,3 +125,11 @@
 [2025-06-16 14:59:13] [INFO] Peer added: 127.0.0.1:55225 (FD: 6). Total peers: 2
 [2025-06-16 14:59:13] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
 [2025-06-16 14:59:13] [INFO] Listener thread: Accepted new connection from 127.0.0.1:55225. FD: 6
+[2025-06-17 12:35:24] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-17 12:35:24] [INFO] Network module initialized.
+[2025-06-17 12:36:49] [ERROR] Blockchain not created/loaded. Cannot add transaction.
+[2025-06-17 12:36:57] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-17 12:36:57] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-17 12:36:57] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-17 12:37:16] [INFO] Transaction 07594be3ae75f0034d71a8dc4b102565c7bf9138921d2b78130fbd687830d60a signed (using dummy signature).
+[2025-06-17 12:37:16] [INFO] Sample transaction created and signed.

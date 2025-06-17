@@ -5,39 +5,41 @@
 #include "core/blockchain.h"
 #include "core/block.h"
 #include "core/transaction.h"
-#include "security/encryption.h"
-#include "config/config.h"
+#include "security/encryption.h" // For encryption functions and constants
+#include "crypto/hasher.h"       // For SHA256_HEX_LEN
+#include "config/config.h"       // For DEFAULT_DATA_DIR and DEFAULT_PORT
 #include "storage/disk_storage.h"
-#include "network/network.h" // <--- NEW: Include network header
+#include "network/network.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <time.h> // For ctime in print_chain
+#include <time.h>
 
-// Forward declarations for internal CLI commands
+// --- Global Variables (Declared here, can be extern in cli.h if needed elsewhere) ---
+// These need to be accessible across different functions in cli.c
+static Blockchain* g_current_blockchain = NULL;
+static char g_blockchain_file_path[256];
+static uint8_t g_dummy_encryption_key[AES_256_KEY_SIZE];
+static int g_key_initialized = 0; // Flag to ensure key is generated only once
+
+// --- Forward Declarations for static helper functions ---
+// These tell the compiler about the functions before they are fully defined.
+static void to_lowercase(char* str);
 static void print_help_menu();
 static void handle_create_blockchain_interactive(Blockchain** bc);
+static void handle_load_blockchain_interactive(Blockchain** bc, const char* blockchain_file_path);
+static void handle_save_blockchain_interactive(Blockchain* bc, const char* blockchain_file_path);
 static void handle_add_transaction_interactive(Blockchain* bc);
 static void handle_mine_block_interactive(Blockchain* bc);
 static void handle_validate_chain_interactive(Blockchain* bc);
 static void handle_print_chain_interactive(Blockchain* bc, const uint8_t* encryption_key);
 static void handle_set_log_level_interactive();
-static void handle_save_blockchain_interactive(Blockchain* bc, const char* blockchain_file_path);
-static void handle_load_blockchain_interactive(Blockchain** bc, const char* blockchain_file_path);
+static void handle_start_listener_interactive();
+static void handle_connect_peer_interactive();
+static void handle_send_test_message_interactive();
 
-// NEW: Network command handlers
-static void handle_start_listener_interactive(void);
-static void handle_connect_peer_interactive(void);
-static void handle_send_test_message_interactive(void); // Simple message sending for testing
-
-
-// A dummy encryption key for demonstration purposes.
-static uint8_t g_dummy_encryption_key[AES_256_KEY_SIZE];
-static int g_key_initialized = 0;
-static Blockchain* g_current_blockchain = NULL;
-static const char* g_blockchain_file_path = DEFAULT_DATA_DIR "/" DEFAULT_BLOCKCHAIN_FILE;
 
 // Helper to convert string to lowercase
 static void to_lowercase(char* str) {
@@ -55,7 +57,9 @@ int cli_run() {
 
     logger_log(LOG_LEVEL_INFO, "Blockchain CLI started (interactive mode).");
 
-    // NEW: Initialize network module
+    // Initialize blockchain file path
+    snprintf(g_blockchain_file_path, sizeof(g_blockchain_file_path), "%s/%s", DEFAULT_DATA_DIR, DEFAULT_BLOCKCHAIN_FILENAME);
+
     if (network_init() != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to initialize network module. Exiting.");
         logger_shutdown();
@@ -65,7 +69,7 @@ int cli_run() {
     if (!g_key_initialized) {
         if (encryption_generate_random_bytes(g_dummy_encryption_key, AES_256_KEY_SIZE) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to generate dummy encryption key for CLI.");
-            network_shutdown(); // Shutdown network if init fails
+            network_shutdown();
             logger_shutdown();
             return 1;
         }
@@ -75,7 +79,7 @@ int cli_run() {
 
     if (disk_storage_ensure_dir(DEFAULT_DATA_DIR) != 0) {
         logger_log(LOG_LEVEL_FATAL, "Failed to create blockchain data directory: %s. Exiting.", DEFAULT_DATA_DIR);
-        network_shutdown(); // Shutdown network if init fails
+        network_shutdown();
         logger_shutdown();
         return EXIT_FAILURE;
     }
@@ -83,7 +87,6 @@ int cli_run() {
     char command[256];
     int running = 1;
 
-    // Enhanced welcome message
     printf(ANSI_COLOR_CYAN ANSI_STYLE_BOLD "\n==============================================\n");
     printf("  Welcome to the Medical Blockchain CLI!\n");
     printf("==============================================\n" ANSI_COLOR_RESET);
@@ -128,7 +131,6 @@ int cli_run() {
         } else if (strcmp(token, "set-log-level") == 0) {
             handle_set_log_level_interactive();
         }
-        // NEW: Network Commands
         else if (strcmp(token, "start-listener") == 0) {
             handle_start_listener_interactive();
         } else if (strcmp(token, "connect-peer") == 0) {
@@ -136,7 +138,6 @@ int cli_run() {
         } else if (strcmp(token, "send-test-message") == 0) {
             handle_send_test_message_interactive();
         }
-        // End NEW Network Commands
         else if (strcmp(token, "exit") == 0 || strcmp(token, "quit") == 0) {
             running = 0;
             printf(ANSI_COLOR_CYAN "Exiting Medical Blockchain CLI. Goodbye!\n" ANSI_COLOR_RESET);
@@ -151,32 +152,29 @@ int cli_run() {
         blockchain_destroy(g_current_blockchain);
         g_current_blockchain = NULL;
     }
-    network_shutdown(); // NEW: Shutdown network module
+    network_shutdown();
     logger_shutdown();
     return 0;
 }
 
 static void print_help_menu() {
     printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "\n--- Available Commands ---\n" ANSI_COLOR_RESET);
-    printf("  " ANSI_COLOR_YELLOW "help" ANSI_COLOR_RESET "                         : Display this help menu.\n");
+    printf("  " ANSI_COLOR_YELLOW "help" ANSI_COLOR_RESET "                     : Display this help menu.\n");
     printf("  " ANSI_COLOR_GREEN "create-blockchain" ANSI_COLOR_RESET "          : Creates a new blockchain with a genesis block (overwrites if exists).\n");
     printf("  " ANSI_COLOR_GREEN "load-blockchain" ANSI_COLOR_RESET "            : Loads an existing blockchain from disk.\n");
     printf("  " ANSI_COLOR_GREEN "save-blockchain" ANSI_COLOR_RESET "            : Saves the current blockchain to disk.\n");
     printf("  " ANSI_COLOR_GREEN "add-transaction" ANSI_COLOR_RESET "            : Adds a placeholder transaction to pending transactions.\n");
-    printf("  " ANSI_COLOR_GREEN "mine-block" ANSI_COLOR_RESET "                   : Mines a new block with pending transactions.\n");
-    printf("  " ANSI_COLOR_GREEN "validate-chain" ANSI_COLOR_RESET "             : Validates the integrity of the blockchain.\n");
+    printf("  " ANSI_COLOR_GREEN "mine-block" ANSI_COLOR_RESET "                 : Mines a new block with pending transactions.\n");
+    printf("  " ANSI_COLOR_GREEN "validate-chain" ANSI_COLOR_RESET "           : Validates the integrity of the blockchain.\n");
     printf("  " ANSI_COLOR_GREEN "print-chain" ANSI_COLOR_RESET " [" ANSI_COLOR_YELLOW "--decrypt" ANSI_COLOR_RESET "]      : Prints all blocks. Use --decrypt to attempt medical data decryption.\n");
-    printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "              : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
-    // NEW Network Commands
+    printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "            : Set the logger level (DEBUG, INFO, WARN, ERROR, FATAL, NONE).\n");
     printf("  " ANSI_COLOR_BLUE "start-listener <port>" ANSI_COLOR_RESET "      : Starts listening for incoming connections on a port.\n");
     printf("  " ANSI_COLOR_BLUE "connect-peer <ip> <port>" ANSI_COLOR_RESET ": Connects to a remote blockchain peer.\n");
     printf("  " ANSI_COLOR_BLUE "send-test-message <msg>" ANSI_COLOR_RESET ": Sends a test message to all connected peers.\n");
-    // End NEW Network Commands
-    printf("  " ANSI_COLOR_RED "exit | quit" ANSI_COLOR_RESET "                : Exits the CLI application.\n");
+    printf("  " ANSI_COLOR_RED "exit | quit" ANSI_COLOR_RESET "            : Exits the CLI application.\n");
     printf(ANSI_COLOR_MAGENTA ANSI_STYLE_BOLD "--------------------------\n" ANSI_COLOR_RESET);
 }
 
-// Interactive handlers (adapted from previous handle_* functions)
 static void handle_create_blockchain_interactive(Blockchain** bc) {
     if (*bc != NULL) {
         printf(ANSI_COLOR_YELLOW "Blockchain already exists in memory. Destroying and recreating...\n" ANSI_COLOR_RESET);
@@ -238,28 +236,113 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
         return;
     }
 
-    const char* sender = "cli_sender";
-    const char* recipient = "cli_recipient";
-    const char* medical_data = "{\"patient\":\"CLI-Patient\", \"diagnosis\":\"Interactive_Flu_Vaccine\"}";
-    double value = 5.5;
+    const char* sender_public_key_dummy = "cli_sender_pubkey_hash_dummy_0123456789abcdef"; // Example SHA256_HEX_LEN chars
+    // The recipient public key hash is part of access control data, not directly used in TX_NEW_RECORD create.
+    const char* medical_data_json = "{\"patient\":\"CLI-Patient\", \"diagnosis\":\"Interactive_Flu_Vaccine\", \"date\":\"2025-06-17\"}";
+    size_t medical_data_len = strlen(medical_data_json);
+
+    uint8_t iv[AES_GCM_IV_SIZE];
+    uint8_t tag[AES_GCM_TAG_SIZE];
+    char original_data_hash_hex[SHA256_HEX_LEN + 1];
+
+    // Allocate buffer for encrypted data. Max size is plaintext_len + tag_size
+    uint8_t* encrypted_data_buffer = (uint8_t*)malloc(medical_data_len + AES_GCM_TAG_SIZE);
+    if (!encrypted_data_buffer) {
+        logger_log(LOG_LEVEL_FATAL, "Failed to allocate memory for encrypted data buffer.");
+        printf(ANSI_COLOR_RED "Failed to allocate memory for encryption.\n" ANSI_COLOR_RESET);
+        return;
+    }
+    int encrypted_data_len = 0; // This will hold the actual encrypted data length returned by the function
 
     printf(ANSI_COLOR_CYAN "Adding a sample transaction...\n" ANSI_COLOR_RESET);
-    Transaction* tx = transaction_create(sender, recipient, medical_data, value, g_dummy_encryption_key);
+
+    // 1. Generate IV
+    if (encryption_generate_random_bytes(iv, AES_GCM_IV_SIZE) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to generate IV for sample transaction.");
+        printf(ANSI_COLOR_RED "Failed to generate IV.\n" ANSI_COLOR_RESET);
+        free(encrypted_data_buffer);
+        return;
+    }
+
+    // 2. Encrypt the medical data
+    // Pass the pre-allocated buffer and let the function return the length.
+    encrypted_data_len = encryption_encrypt_aes_gcm(
+        (const uint8_t*)medical_data_json,
+        (int)medical_data_len, // Cast to int as per encryption.h
+        g_dummy_encryption_key,
+        iv,
+        encrypted_data_buffer, // Pass the allocated buffer
+        tag
+    );
+
+    if (encrypted_data_len == -1) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to encrypt medical data for sample transaction.");
+        printf(ANSI_COLOR_RED "Failed to encrypt medical data.\n" ANSI_COLOR_RESET);
+        free(encrypted_data_buffer);
+        return;
+    }
+
+    // 3. Calculate the hash of the original (unencrypted) medical data
+    uint8_t original_data_hash_binary[SHA256_DIGEST_LENGTH];
+    if (hasher_sha256((const uint8_t*)medical_data_json, medical_data_len, original_data_hash_binary) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to hash original medical data.");
+        printf(ANSI_COLOR_RED "Failed to hash original medical data.\n" ANSI_COLOR_RESET);
+        free(encrypted_data_buffer);
+        return;
+    }
+    hasher_bytes_to_hex_buf(original_data_hash_binary, SHA256_DIGEST_LENGTH, original_data_hash_hex, sizeof(original_data_hash_hex));
+
+    // 4. Create the base transaction
+    char dummy_signature[SHA256_HEX_LEN * 2 + 1] = {0}; // Double size for hex + null terminator
+    strncpy(dummy_signature, "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", sizeof(dummy_signature) - 1);
+    dummy_signature[sizeof(dummy_signature) - 1] = '\0';
+
+    Transaction* tx = transaction_create(
+        TX_NEW_RECORD,
+        sender_public_key_dummy,
+        dummy_signature
+    );
 
     if (tx) {
-        transaction_sign(tx, "CLI_PrivateKey_For_Signing_Tx");
-        logger_log(LOG_LEVEL_INFO, "Sample transaction created.");
+        // 5. Set the new record data.
+        // transaction_set_new_record_data MUST make a copy of encrypted_data_buffer
+        // because encrypted_data_buffer is a local heap allocation and will be freed.
+        if (transaction_set_new_record_data(tx,
+                                            encrypted_data_buffer,
+                                            (size_t)encrypted_data_len,
+                                            iv, tag, original_data_hash_hex) != 0) {
+            logger_log(LOG_LEVEL_ERROR, "Failed to set new record data for transaction.");
+            printf(ANSI_COLOR_RED "Failed to set new record data for transaction.\n" ANSI_COLOR_RESET);
+            transaction_destroy(tx);
+            free(encrypted_data_buffer); // Free if set data failed
+            return;
+        }
+
+        // 6. Sign the transaction (using a dummy private key for this example)
+        if (transaction_sign(tx, "CLI_PrivateKey_For_Signing_Tx") != 0) { // Assuming a private key string is used
+            logger_log(LOG_LEVEL_ERROR, "Failed to sign sample transaction.");
+            printf(ANSI_COLOR_RED "Failed to sign sample transaction.\n" ANSI_COLOR_RESET);
+            transaction_destroy(tx);
+            free(encrypted_data_buffer); // Free if signing failed
+            return;
+        }
+
+        logger_log(LOG_LEVEL_INFO, "Sample transaction created and signed.");
         if (blockchain_add_transaction_to_pending(bc, tx) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to add transaction to pending list.");
             printf(ANSI_COLOR_RED "Failed to add transaction to pending list.\n" ANSI_COLOR_RESET);
             transaction_destroy(tx);
+            free(encrypted_data_buffer); // Free if adding to blockchain failed
         } else {
             logger_log(LOG_LEVEL_INFO, "Transaction added to pending list. Mine a block to include it!");
             printf(ANSI_COLOR_GREEN "Transaction added to pending list. " ANSI_COLOR_RESET "Remember to " ANSI_COLOR_YELLOW "'mine-block'" ANSI_COLOR_RESET " to include it in the chain.\n");
+            // Free the buffer as transaction_set_new_record_data should have made its own copy.
+            free(encrypted_data_buffer);
         }
     } else {
-        logger_log(LOG_LEVEL_ERROR, "Failed to create sample transaction.");
-        printf(ANSI_COLOR_RED "Failed to create sample transaction.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Failed to create base transaction object.");
+        printf(ANSI_COLOR_RED "Failed to create base transaction object.\n" ANSI_COLOR_RESET);
+        free(encrypted_data_buffer); // Free if tx creation failed
     }
 }
 
@@ -307,7 +390,7 @@ static void handle_print_chain_interactive(Blockchain* bc, const uint8_t* encryp
         Block* b = blockchain_get_block_by_index(bc, i);
         if (b) {
             printf(ANSI_COLOR_CYAN "\n--- Block #%zu ---\n" ANSI_COLOR_RESET, i);
-            block_print(b, encryption_key); // block_print will use colors internally
+            block_print(b, encryption_key);
             printf(ANSI_COLOR_CYAN "-----------------\n" ANSI_COLOR_RESET);
         } else {
             logger_log(LOG_LEVEL_ERROR, "Failed to retrieve block at index %zu for printing.", i);
@@ -349,11 +432,9 @@ static void handle_set_log_level_interactive() {
     printf(ANSI_COLOR_GREEN "Log level set to %s.\n" ANSI_COLOR_RESET, level_str);
 }
 
-// --- NEW: Network Command Handlers ---
-
 static void handle_start_listener_interactive() {
     char *port_str = strtok(NULL, " ");
-    int port = DEFAULT_PORT; // Use default if no port specified
+    int port = DEFAULT_PORT;
 
     if (port_str != NULL) {
         port = atoi(port_str);
@@ -368,7 +449,6 @@ static void handle_start_listener_interactive() {
     if (network_start_listener(port) != 0) {
         printf(ANSI_COLOR_RED "Failed to start network listener.\n" ANSI_COLOR_RESET);
     } else {
-        // Updated message to reflect that the CLI remains responsive due to threading.
         printf(ANSI_COLOR_GREEN "Network listener started successfully in the background!\n" ANSI_COLOR_RESET);
         printf("You can now continue using the CLI or connect from another node.\n");
     }
@@ -395,7 +475,6 @@ static void handle_connect_peer_interactive() {
 }
 
 static void handle_send_test_message_interactive() {
-    // Read the rest of the line as the message
     char *message_content = strtok(NULL, "");
 
     if (message_content == NULL || strlen(message_content) == 0) {
@@ -403,12 +482,11 @@ static void handle_send_test_message_interactive() {
         return;
     }
 
-    // Trim leading space if any (strtok with "" might leave it)
-    while (*message_content == ' ') {
+    while (*message_content == ' ') { // Trim leading spaces
         message_content++;
     }
 
-    int peer_fd = network_get_first_peer_socket_fd(); // Get the FD of the first connected peer
+    int peer_fd = network_get_first_peer_socket_fd();
     if (peer_fd == -1) {
         printf(ANSI_COLOR_YELLOW "No active peers to send messages to. Use 'connect-peer' first.\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_WARN, "No active peers to send test message.");

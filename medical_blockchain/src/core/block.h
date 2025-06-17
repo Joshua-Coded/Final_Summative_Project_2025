@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <time.h>
 #include <stddef.h> // For size_t
-#include "transaction.h"        // Make sure Transaction struct is defined here and is compatible
-#include "../security/encryption.h" // <--- ADDED: Required for AES_256_KEY_SIZE
-#include "../crypto/sha256.h"   // <--- ADDED: Required for HASH_HEX_LEN if used for printing, and SHA256_DIGEST_LENGTH if BLOCK_HASH_SIZE uses it.
+#include "transaction.h"      // Make sure Transaction struct is defined here and is compatible
+#include "../security/encryption.h" // Required for AES_256_KEY_SIZE
+#include "../crypto/sha256.h" // Required for HASH_HEX_LEN if used for printing, and SHA256_DIGEST_LENGTH if BLOCK_HASH_SIZE uses it.
 
 // Define the size of the block hash (SHA256)
 #define BLOCK_HASH_SIZE 32 // This should consistently be SHA256_DIGEST_LENGTH from sha256.h
@@ -16,18 +16,17 @@
  * Each block contains metadata and a list of transactions.
  */
 typedef struct Block {
-    uint32_t index;             // The block's height in the blockchain
-    int64_t timestamp;          // Time of block creation (Unix timestamp)
+    uint32_t index;              // The block's height in the blockchain
+    int64_t timestamp;           // Time of block creation (Unix timestamp)
     uint8_t prev_hash[BLOCK_HASH_SIZE]; // Hash of the previous block
     uint8_t hash[BLOCK_HASH_SIZE];      // Hash of this block
-    uint32_t nonce;             // Nonce value for Proof-of-Work
-    size_t num_transactions;    // Number of transactions in this block
+    uint32_t nonce;              // Nonce value for Proof-of-Work
+    size_t num_transactions;     // Number of transactions in this block
     // Dynamically allocated array of pointers to Transaction structs
     Transaction** transactions;
 } Block;
 
 // Function prototypes for block operations
-// (You will need to ensure these are implemented in src/core/block.c)
 
 /**
  * @brief Creates a new block.
@@ -82,11 +81,6 @@ void block_destroy(Block* block);
  * @param block A pointer to the block to print.
  * @param encryption_key The key used for decryption, or NULL if not decrypting.
  */
-// FIX: Unified block_print to take the encryption_key
 void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]);
-
-// The separate block_print_with_decryption is no longer needed if block_print is unified.
-// You can remove its prototype.
-// void block_print_with_decryption(const Block* block, const uint8_t encryption_key[AES_256_KEY_SIZE]);
 
 #endif // BLOCK_H

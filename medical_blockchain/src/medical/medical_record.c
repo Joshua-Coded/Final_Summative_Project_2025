@@ -1,265 +1,304 @@
 // src/medical/medical_record.c
 #include "medical_record.h"
-#include "utils/logger.h"
-#include <json-c/json.h> // json-c library
+#include "../utils/logger.h"
+#include "../utils/colors.h"
+#include "../crypto/hasher.h"
+#include <cjson/cJSON.h> // Make sure this is correctly linked in your Makefile
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h> // For snprintf
+#include <time.h> // For time() and time_t
 
-// Helper to safely get a string from a JSON object
-static char* get_json_string_value(json_object* obj, const char* key) {
-    json_object* value_obj;
-    if (json_object_object_get_ex(obj, key, &value_obj) && json_object_is_type(value_obj, json_type_string)) {
-        return strdup(json_object_get_string(value_obj));
-    }
-    return NULL; // Return NULL if key not found or not a string
-}
+// Forward declaration for internal JSON helper
+static void copy_json_string_value(const cJSON* obj, const char* key, char* dest, size_t dest_size);
 
 /**
- * @brief Creates a JSON string representing a medical record.
- * This is used to prepare data before encryption and creating a transaction.
- *
- * @param patient_id The ID of the patient.
- * @param type The type of medical record (e.g., "diagnosis", "prescription").
- * @param description A general description of the record.
- * @param doctor The doctor associated with the record.
- * @param date The date of the record.
- * @param medication (Optional) For prescription types.
- * @param dosage (Optional) For prescription types.
- * @param allergy (Optional) For allergy updates.
- * @param severity (Optional) For allergy updates.
- * @return A dynamically allocated JSON string on success, NULL on failure.
- * The caller is responsible for freeing this string.
+ * @brief Creates a new medical record structure.
+ * Initializes the record with default values.
+ * @return A pointer to the newly allocated MedicalRecord, or NULL on failure.
  */
-char* medical_record_create_json(
-    const char* patient_id,
-    const char* type,
-    const char* description,
-    const char* doctor,
-    const char* date,
-    const char* medication,
-    const char* dosage,
-    const char* allergy,
-    const char* severity
-) {
-    if (patient_id == NULL || type == NULL || description == NULL || doctor == NULL || date == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Required fields for medical record JSON creation are NULL.");
-        return NULL;
-    }
-
-    json_object *jobj = json_object_new_object();
-    if (!jobj) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to create new JSON object.");
-        return NULL;
-    }
-
-    json_object_object_add(jobj, "patient_id", json_object_new_string(patient_id));
-    json_object_object_add(jobj, "type", json_object_new_string(type));
-    json_object_object_add(jobj, "description", json_object_new_string(description));
-    json_object_object_add(jobj, "doctor", json_object_new_string(doctor));
-    json_object_object_add(jobj, "date", json_object_new_string(date));
-
-    if (medication) json_object_object_add(jobj, "medication", json_object_new_string(medication));
-    if (dosage) json_object_object_add(jobj, "dosage", json_object_new_string(dosage));
-    if (allergy) json_object_object_add(jobj, "allergy", json_object_new_string(allergy));
-    if (severity) json_object_object_add(jobj, "severity", json_object_new_string(severity));
-
-    const char* json_str = json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PLAIN);
-    if (!json_str) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to convert JSON object to string.");
-        json_object_put(jobj); // Free the JSON object
-        return NULL;
-    }
-
-    char* result = strdup(json_str);
-    json_object_put(jobj); // Free the JSON object
-
-    return result;
-}
-
-/**
- * @brief Parses a JSON string into a MedicalRecord structure.
- * @param json_string The JSON string to parse.
- * @return A pointer to a newly allocated MedicalRecord struct on success, NULL on failure.
- * The caller is responsible for freeing this struct using medical_record_destroy.
- */
-MedicalRecord* medical_record_parse_json(const char* json_string) {
-    if (json_string == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Cannot parse medical record: JSON string is NULL.");
-        return NULL;
-    }
-
-    json_object *jobj = json_tokener_parse(json_string);
-    if (jobj == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to parse JSON string for medical record.");
-        return NULL;
-    }
-
-    MedicalRecord* record = (MedicalRecord*)calloc(1, sizeof(MedicalRecord)); // Use calloc to zero-initialize
+MedicalRecord* medical_record_create() {
+    MedicalRecord* record = (MedicalRecord*)calloc(1, sizeof(MedicalRecord));
     if (record == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for MedicalRecord.");
-        json_object_put(jobj);
         return NULL;
     }
-
-    record->patient_id = get_json_string_value(jobj, "patient_id");
-    record->type = get_json_string_value(jobj, "type");
-    record->description = get_json_string_value(jobj, "description");
-    record->doctor = get_json_string_value(jobj, "doctor");
-    record->date = get_json_string_value(jobj, "date");
-    record->medication = get_json_string_value(jobj, "medication");
-    record->dosage = get_json_string_value(jobj, "dosage");
-    record->allergy = get_json_string_value(jobj, "allergy");
-    record->severity = get_json_string_value(jobj, "severity");
-
-    json_object_put(jobj); // Free the JSON object, not the strings (they were strdup'd)
-
-    // Basic validation: must have patient_id and type
-    if (record->patient_id == NULL || record->type == NULL) {
-        logger_log(LOG_LEVEL_WARN, "Parsed medical record missing required fields (patient_id or type).");
-        medical_record_destroy(record);
-        return NULL;
-    }
-
+    record->timestamp = time(NULL); // Set creation timestamp
+    // Initialize data pointer to NULL and length to 0
+    record->data = NULL;
+    record->data_len = 0;
+    record->record_hash[0] = '\0'; // Initialize hash string
     return record;
 }
 
 /**
- * @brief Converts a MedicalRecord struct back into a JSON string.
- * @param record A pointer to the MedicalRecord struct.
- * @return A dynamically allocated JSON string on success, NULL on failure.
- * The caller is responsible for freeing this string.
+ * @brief Sets the raw data (e.g., JSON string) for a medical record.
+ * This function will also calculate the record_hash.
+ * @param record The MedicalRecord to update.
+ * @param raw_data The raw data (e.g., JSON string) to store.
+ * @param raw_data_len The length of the raw data.
+ * @return 0 on success, -1 on failure.
  */
-char* medical_record_to_json_string(const MedicalRecord* record) {
-    if (record == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Cannot convert NULL MedicalRecord to JSON string.");
-        return NULL;
+int medical_record_set_data(MedicalRecord* record, const uint8_t* raw_data, size_t raw_data_len) {
+    if (record == NULL || raw_data == NULL || raw_data_len == 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for medical_record_set_data.");
+        return -1;
     }
 
-    json_object *jobj = json_object_new_object();
-    if (!jobj) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to create new JSON object for MedicalRecord serialization.");
-        return NULL;
+    // Free existing data if any
+    if (record->data != NULL) {
+        free(record->data);
+        record->data = NULL;
+        record->data_len = 0;
     }
 
-    if (record->patient_id) json_object_object_add(jobj, "patient_id", json_object_new_string(record->patient_id));
-    if (record->type) json_object_object_add(jobj, "type", json_object_new_string(record->type));
-    if (record->description) json_object_object_add(jobj, "description", json_object_new_string(record->description));
-    if (record->doctor) json_object_object_add(jobj, "doctor", json_object_new_string(record->doctor));
-    if (record->date) json_object_object_add(jobj, "date", json_object_new_string(record->date));
-    if (record->medication) json_object_object_add(jobj, "medication", json_object_new_string(record->medication));
-    if (record->dosage) json_object_object_add(jobj, "dosage", json_object_new_string(record->dosage));
-    if (record->allergy) json_object_object_add(jobj, "allergy", json_object_new_string(record->allergy));
-    if (record->severity) json_object_object_add(jobj, "severity", json_object_new_string(record->severity));
+    record->data = (uint8_t*)malloc(raw_data_len);
+    if (record->data == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for medical record data.");
+        return -1;
+    }
+    memcpy(record->data, raw_data, raw_data_len);
+    record->data_len = raw_data_len;
 
-    const char* json_str = json_object_to_json_string_ext(jobj, JSON_C_TO_STRING_PLAIN);
-    if (!json_str) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to convert JSON object to string from MedicalRecord.");
-        json_object_put(jobj);
-        return NULL;
+    // Calculate and set the hash of the raw data
+    uint8_t hash_binary[SHA256_DIGEST_LENGTH];
+    if (medical_record_calculate_hash(record, hash_binary) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for medical record data.");
+        return -1;
     }
 
-    char* result = strdup(json_str);
-    json_object_put(jobj); // Free the JSON object
-    return result;
+    char* hex_hash = hasher_bytes_to_hex(hash_binary, SHA256_DIGEST_LENGTH);
+    if (hex_hash) {
+        strncpy(record->record_hash, hex_hash, MEDICAL_RECORD_HASH_LEN);
+        record->record_hash[MEDICAL_RECORD_HASH_LEN] = '\0';
+        free(hex_hash);
+    } else {
+        logger_log(LOG_LEVEL_ERROR, "Failed to convert record hash to hex.");
+        return -1;
+    }
+
+    return 0;
 }
 
 
 /**
- * @brief Frees the memory allocated for a MedicalRecord struct.
- * @param record A pointer to the MedicalRecord struct to destroy.
+ * @brief Calculates the SHA256 hash of the medical record's data.
+ * This hash is used for the record_hash field in the struct.
+ * @param record The medical record whose data will be hashed.
+ * @param output_hash A buffer of SHA256_DIGEST_LENGTH to store the binary hash.
+ * @return 0 on success, -1 on failure.
+ */
+int medical_record_calculate_hash(const MedicalRecord* record, uint8_t output_hash[SHA256_DIGEST_LENGTH]) {
+    if (record == NULL || record->data == NULL || record->data_len == 0 || output_hash == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for medical_record_calculate_hash.");
+        return -1;
+    }
+    // Hash the raw data (which is expected to be a JSON string or similar)
+    hasher_sha256(record->data, record->data_len, output_hash);
+    return 0;
+}
+
+/**
+ * @brief Converts a MedicalRecord struct to a cJSON object.
+ * This function serializes the MedicalRecord's core fields (hash, data_len, timestamp)
+ * and includes the raw 'data' as a string within the JSON.
+ * @param record The MedicalRecord to convert.
+ * @return A pointer to the cJSON object, or NULL on failure. Caller must free with cJSON_Delete.
+ */
+cJSON* medical_record_to_json(const MedicalRecord* record) {
+    if (record == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Cannot convert NULL MedicalRecord to JSON.");
+        return NULL;
+    }
+
+    cJSON* jobj = cJSON_CreateObject();
+    if (jobj == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to create JSON object for MedicalRecord.");
+        return NULL;
+    }
+
+    cJSON_AddStringToObject(jobj, "record_hash", record->record_hash);
+    cJSON_AddNumberToObject(jobj, "data_len", (double)record->data_len);
+    cJSON_AddNumberToObject(jobj, "timestamp", (double)record->timestamp);
+
+    // Add the raw data as a JSON string.
+    if (record->data != NULL && record->data_len > 0) {
+        char* data_str = (char*)malloc(record->data_len + 1);
+        if (data_str == NULL) {
+            logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for data_str in medical_record_to_json.");
+            cJSON_Delete(jobj);
+            return NULL;
+        }
+        memcpy(data_str, record->data, record->data_len);
+        data_str[record->data_len] = '\0'; // Null-terminate
+
+        cJSON_AddStringToObject(jobj, "data", data_str);
+        free(data_str); // cJSON_AddStringToObject makes a copy, so free our temp buffer
+    } else {
+        cJSON_AddStringToObject(jobj, "data", ""); // Add empty string if no data
+    }
+
+
+    logger_log(LOG_LEVEL_DEBUG, "MedicalRecord converted to JSON.");
+    return jobj;
+}
+
+/**
+ * @brief Converts a cJSON object into a MedicalRecord struct.
+ * This function parses the cJSON object and reconstructs a MedicalRecord,
+ * including its raw 'data' field.
+ * @param jobj The cJSON object to convert.
+ * @return A pointer to the newly created MedicalRecord, or NULL on failure. Caller must free with medical_record_destroy.
+ */
+MedicalRecord* medical_record_from_json(const cJSON* jobj) {
+    if (jobj == NULL || !cJSON_IsObject(jobj)) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid JSON object for MedicalRecord deserialization.");
+        return NULL;
+    }
+
+    MedicalRecord* record = medical_record_create();
+    if (record == NULL) {
+        return NULL; // Error already logged by medical_record_create
+    }
+
+    // Extract record_hash
+    copy_json_string_value(jobj, "record_hash", record->record_hash, sizeof(record->record_hash));
+
+    // Extract data_len
+    cJSON* data_len_obj = cJSON_GetObjectItemCaseSensitive(jobj, "data_len");
+    if (cJSON_IsNumber(data_len_obj)) {
+        record->data_len = (size_t)cJSON_GetNumberValue(data_len_obj);
+    } else {
+        logger_log(LOG_LEVEL_WARN, "JSON 'data_len' not found or not a number, defaulting to 0.");
+        record->data_len = 0;
+    }
+
+    // Extract timestamp
+    cJSON* timestamp_obj = cJSON_GetObjectItemCaseSensitive(jobj, "timestamp");
+    if (cJSON_IsNumber(timestamp_obj)) {
+        record->timestamp = (time_t)cJSON_GetNumberValue(timestamp_obj);
+    } else {
+        logger_log(LOG_LEVEL_WARN, "JSON 'timestamp' not found or not a number, defaulting to current time.");
+        record->timestamp = time(NULL); // Default to current time if not in JSON
+    }
+
+    // Extract raw data string
+    cJSON* data_obj = cJSON_GetObjectItemCaseSensitive(jobj, "data");
+    if (cJSON_IsString(data_obj) && data_obj->valuestring != NULL) {
+        if (record->data) free(record->data); // Should not happen for a newly created record
+
+        size_t string_len = strlen(data_obj->valuestring);
+        record->data = (uint8_t*)malloc(string_len + 1); // +1 for null terminator if treating as string
+        if (record->data == NULL) {
+            logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for record data during deserialization.");
+            medical_record_destroy(record); // Clean up partially created record
+            return NULL;
+        }
+        memcpy(record->data, data_obj->valuestring, string_len);
+        record->data[string_len] = '\0'; // Ensure null termination
+        record->data_len = string_len;   // Update data_len to actual string length
+    } else {
+        logger_log(LOG_LEVEL_WARN, "JSON 'data' field not found or not a string. Medical record data will be empty.");
+        record->data = NULL;
+        record->data_len = 0;
+    }
+
+    // Verify hash (optional, but good for integrity)
+    uint8_t recomputed_hash_binary[SHA256_DIGEST_LENGTH];
+    if (record->data != NULL && record->data_len > 0 &&
+        medical_record_calculate_hash(record, recomputed_hash_binary) == 0) {
+        char* recomputed_hex_hash = hasher_bytes_to_hex(recomputed_hash_binary, SHA256_DIGEST_LENGTH);
+        if (recomputed_hex_hash && strcmp(record->record_hash, recomputed_hex_hash) != 0) {
+            logger_log(LOG_LEVEL_WARN, "Deserialized MedicalRecord hash mismatch! Original: %s, Recomputed: %s",
+                                 record->record_hash, recomputed_hex_hash);
+        }
+        if (recomputed_hex_hash) free(recomputed_hex_hash);
+    } else {
+          logger_log(LOG_LEVEL_WARN, "Could not recompute hash for deserialized medical record (data might be empty).");
+    }
+
+    logger_log(LOG_LEVEL_DEBUG, "MedicalRecord deserialized from JSON.");
+    return record;
+}
+
+
+/**
+ * @brief Frees all memory associated with a MedicalRecord.
+ * @param record A pointer to the MedicalRecord to destroy.
  */
 void medical_record_destroy(MedicalRecord* record) {
-    if (record == NULL) return;
-
-    free(record->patient_id);
-    free(record->type);
-    free(record->description);
-    free(record->doctor);
-    free(record->date);
-    free(record->medication);
-    free(record->dosage);
-    free(record->allergy);
-    free(record->severity);
-
+    if (record == NULL) {
+        return;
+    }
+    if (record->data != NULL) {
+        free(record->data);
+        record->data = NULL;
+    }
     free(record);
     logger_log(LOG_LEVEL_DEBUG, "MedicalRecord destroyed.");
 }
 
 
 /**
- * @brief Searches the blockchain for medical records related to a specific patient ID.
- *
- * @param blockchain A pointer to the blockchain to search.
- * @param patient_id The patient ID to search for.
- * @param encryption_key The encryption key to decrypt medical data.
- * @param found_records_count A pointer to a size_t to store the number of records found.
- * @return A dynamically allocated array of MedicalRecord pointers on success, NULL if no records found or on error.
- * The caller is responsible for freeing each MedicalRecord in the array and the array itself.
+ * @brief Prints the details of a medical record (including its internal JSON data if available).
+ * @param record The medical record to print.
  */
-MedicalRecord** medical_record_search_by_patient(
-    const Blockchain* blockchain,
-    const char* patient_id,
-    const uint8_t encryption_key[AES_256_KEY_SIZE],
-    size_t* found_records_count
-) {
-    if (blockchain == NULL || patient_id == NULL || encryption_key == NULL || found_records_count == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Invalid input for medical_record_search_by_patient.");
-        *found_records_count = 0;
-        return NULL;
+void medical_record_print(const MedicalRecord* record) {
+    if (record == NULL) {
+        printf(ANSI_COLOR_RED "NULL Medical Record\n" ANSI_COLOR_RESET);
+        return;
     }
 
-    MedicalRecord** records_found = NULL;
-    size_t current_count = 0;
+    printf(ANSI_COLOR_CYAN "--- Medical Record Details ---\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_CYAN "  Record Hash:           " ANSI_COLOR_RESET "%s\n", record->record_hash);
+    printf(ANSI_COLOR_CYAN "  Data Length:           " ANSI_COLOR_RESET "%zu bytes\n", record->data_len);
+    printf(ANSI_COLOR_CYAN "  Timestamp:             " ANSI_COLOR_RESET "%ld (" ANSI_COLOR_BRIGHT_BLACK "%s" ANSI_COLOR_RESET ")", (long)record->timestamp, ctime((const time_t*)&record->timestamp)); // ctime adds newline
 
-    for (size_t i = 0; i < blockchain->length; i++) {
-        const Block* block = blockchain->chain[i];
-        for (size_t j = 0; j < block->num_transactions; j++) {
-            // FIX IS HERE: take the address of the transaction struct
-            const Transaction* tx = block->transactions[j];
+    printf(ANSI_COLOR_YELLOW "  Raw Data Content:\n" ANSI_COLOR_RESET);
+    if (record->data != NULL && record->data_len > 0) {
+        // Assuming data is a JSON string, print it.
+        printf(ANSI_COLOR_YELLOW "    %.*s\n" ANSI_COLOR_RESET, (int)record->data_len, (char*)record->data);
 
-            // Only decrypt if it's a relevant transaction (e.g., recipient_id or sender_id matches patient_id)
-            // Or just decrypt all and check patient_id in the medical data. The latter is simpler for now.
-            char* decrypted_medical_data = transaction_decrypt_medical_data(tx, encryption_key);
-            if (decrypted_medical_data != NULL) {
-                MedicalRecord* record = medical_record_parse_json(decrypted_medical_data);
-                if (record != NULL) {
-                    if (record->patient_id != NULL && strcmp(record->patient_id, patient_id) == 0) {
-                        // Found a matching record, add it to our list
-                        MedicalRecord** temp_records = (MedicalRecord**)realloc(records_found, (current_count + 1) * sizeof(MedicalRecord*));
-                        if (temp_records == NULL) {
-                            logger_log(LOG_LEVEL_ERROR, "Failed to reallocate memory for found medical records.");
-                            medical_record_destroy(record); // Free the current record
-                            // Free all previously found records before returning NULL
-                            for (size_t k = 0; k < current_count; k++) {
-                                medical_record_destroy(records_found[k]);
-                            }
-                            free(records_found);
-                            free(decrypted_medical_data);
-                            *found_records_count = 0;
-                            return NULL;
-                        }
-                        records_found = temp_records;
-                        records_found[current_count++] = record;
-                    } else {
-                        medical_record_destroy(record); // Not a match, free it
-                    }
-                } else {
-                    logger_log(LOG_LEVEL_WARN, "Failed to parse decrypted medical data for transaction %s. Skipping.", tx->transaction_id);
-                }
-                free(decrypted_medical_data); // Free the decrypted string
-            } else {
-                logger_log(LOG_LEVEL_WARN, "Failed to decrypt medical data for transaction %s. Skipping.", tx->transaction_id);
+        // Optional: If you want to parse and pretty-print the internal JSON data here
+        cJSON* inner_json = cJSON_Parse((const char*)record->data);
+        if (inner_json) {
+            char* printed_json = cJSON_PrintUnformatted(inner_json); // Or cJSON_Print for pretty-print
+            if (printed_json) {
+                printf(ANSI_COLOR_YELLOW "    (Parsed Content): %s\n" ANSI_COLOR_RESET, printed_json);
+                free(printed_json);
             }
+            cJSON_Delete(inner_json);
+        } else {
+            logger_log(LOG_LEVEL_WARN, "Could not parse internal data as JSON. Printing as raw string.");
         }
-    }
 
-    *found_records_count = current_count;
-    if (current_count == 0) {
-        logger_log(LOG_LEVEL_INFO, "No medical records found for patient ID: %s.", patient_id);
-        return NULL;
+    } else {
+        printf(ANSI_COLOR_YELLOW "    (No data available)\n" ANSI_COLOR_RESET);
     }
+    printf(ANSI_COLOR_CYAN "--------------------------------------------------\n" ANSI_COLOR_RESET);
+}
 
-    logger_log(LOG_LEVEL_INFO, "Found %zu medical records for patient ID: %s.", current_count, patient_id);
-    return records_found;
+// --- Internal Helper Functions ---
+
+/**
+ * @brief Copies a string value from a JSON object item to a destination buffer.
+ * @param obj The cJSON object.
+ * @param key The key of the string item.
+ * @param dest The destination buffer.
+ * @param dest_size The size of the destination buffer.
+ */
+static void copy_json_string_value(const cJSON* obj, const char* key, char* dest, size_t dest_size) {
+    if (obj == NULL || key == NULL || dest == NULL || dest_size == 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for copy_json_string_value.");
+        if (dest && dest_size > 0) dest[0] = '\0';
+        return;
+    }
+    cJSON* item = cJSON_GetObjectItemCaseSensitive(obj, key);
+    if (cJSON_IsString(item) && item->valuestring != NULL) {
+        strncpy(dest, item->valuestring, dest_size - 1);
+        dest[dest_size - 1] = '\0';
+    } else {
+        logger_log(LOG_LEVEL_WARN, "JSON item '%s' not found or not a string. Setting destination to empty string.", key);
+        dest[0] = '\0';
+    }
 }

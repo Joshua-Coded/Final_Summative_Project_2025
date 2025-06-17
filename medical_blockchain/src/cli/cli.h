@@ -2,6 +2,8 @@
 #ifndef CLI_H
 #define CLI_H
 
+#define DEFAULT_BLOCKCHAIN_FILENAME "blockchain.dat"
+
 /**
  * @brief Runs the Command Line Interface in interactive mode.
  *

@@ -1,16 +1,18 @@
 // src/core/block.c
 #include "block.h"
-#include "transaction.h"    // For Transaction struct, transaction_destroy, and transaction_is_valid
+#include "transaction.h"      // For Transaction struct, transaction_destroy, and transaction_is_valid
 #include "../crypto/hasher.h" // For hasher_sha256, hasher_bytes_to_hex, SHA256_HASH_SIZE, HASH_HEX_LEN
+// ^^^ hasher.h now includes sha256.h, so SHA256_HASH_SIZE and HASH_HEX_LEN are available
+
 #include "../security/encryption.h" // Required for encryption/decryption functions and AES_256_KEY_SIZE, AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE
 #include "../utils/logger.h"
 #include "../utils/colors.h" // Include colors header
 #include "../config/config.h" // For BLOCKCHAIN_DIFFICULTY, MAX_TRANSACTIONS_PER_BLOCK, BLOCK_HASH_SIZE
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>          // For snprintf, printf
-#include <time.h>           // For time(), ctime()
-#include <limits.h>         // For UINT32_MAX
+#include <stdio.h>           // For snprintf, printf
+#include <time.h>            // For time(), ctime()
+#include <limits.h>          // For UINT32_MAX
 
 /**
  * @brief Creates a new block.
@@ -63,10 +65,8 @@ int block_add_transaction(Block* block, Transaction* transaction) {
     block->transactions[block->num_transactions] = transaction; // Store the pointer
     block->num_transactions++;
 
-    // Convert binary transaction_id to hex string for logging
-    char tx_id_hex[HASH_HEX_LEN + 1]; // Use HASH_HEX_LEN from hasher.h
-    hasher_bytes_to_hex_buf(transaction->transaction_id, SHA256_HASH_SIZE, tx_id_hex, sizeof(tx_id_hex)); // Fixed buf_len
-    logger_log(LOG_LEVEL_DEBUG, "Transaction %s added to Block #%u.", tx_id_hex, block->index);
+    // Removed: char tx_id_hex[HASH_HEX_LEN + 1]; // This variable is no longer needed
+    logger_log(LOG_LEVEL_DEBUG, "Transaction %s added to Block #%u.", transaction->transaction_id, block->index);
     return 0;
 }
 
@@ -140,6 +140,13 @@ int block_calculate_hash(const Block* block, uint8_t output_hash[BLOCK_HASH_SIZE
     // 3. Nonce (as string)
     // 4. Previous block hash (binary, BLOCK_HASH_SIZE bytes)
     // 5. Concatenated binary transaction IDs (each SHA256_HASH_SIZE bytes)
+    //    NOTE: If transaction_id is a HEX string in Transaction struct, it needs to be converted back to binary first,
+    //    or simply include the hex string directly in the hash input if that's the design.
+    //    Given the error message, 'transaction_id' is already a char array for hex.
+    //    For hashing, it's often best to hash the raw binary if possible, but if the ID is defined as the hex string,
+    //    you can hash the hex string representation. Let's assume for now you hash the hex string for simplicity
+    //    as that aligns with the struct definition. If you intended to hash the RAW transaction hash,
+    //    your Transaction struct would need a uint8_t transaction_id[SHA256_HASH_SIZE] member.
 
     char header_numeric_str[256]; // Buffer for index, timestamp, nonce as strings
     // Using %u for uint32_t (index, nonce) and %lld for time_t (timestamp), which is usually long long
@@ -157,16 +164,21 @@ int block_calculate_hash(const Block* block, uint8_t output_hash[BLOCK_HASH_SIZE
     size_t total_data_len = header_len;
     total_data_len += BLOCK_HASH_SIZE; // For prev_hash (binary)
 
-    // Add length for all transaction IDs (binary)
+    // Add length for all transaction IDs (hex string length)
+    // Each transaction ID is TRANSACTION_ID_LEN bytes (SHA256_HEX_LEN)
     for (size_t i = 0; i < block->num_transactions; i++) {
         if (block->transactions[i] == NULL) {
             logger_log(LOG_LEVEL_ERROR, "NULL transaction found in Block #%u at index %zu during hash calculation.", block->index, i);
             return -1;
         }
-        total_data_len += SHA256_HASH_SIZE; // Each transaction ID is SHA256_HASH_SIZE bytes
+        total_data_len += TRANSACTION_ID_LEN; // Each transaction ID is a hex string (TRANSACTION_ID_LEN chars)
     }
 
     // --- Step 2: Allocate memory and concatenate all data into a single uint8_t buffer ---
+    // Note: We are concatenating strings and binary data. For SHA256, it's generally best to hash raw bytes.
+    // If transaction_id is a hex string, it means it's 64 characters. Hashing that string directly is fine,
+    // but typically a block hash would include the *raw binary hash* of its transactions.
+    // For now, I'll assume you intend to hash the hex string of transaction IDs as per your struct.
     uint8_t* data_to_hash_buffer = (uint8_t*)malloc(total_data_len);
     if (data_to_hash_buffer == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for block data to hash.");
@@ -183,11 +195,11 @@ int block_calculate_hash(const Block* block, uint8_t output_hash[BLOCK_HASH_SIZE
     memcpy(data_to_hash_buffer + current_offset, block->prev_hash, BLOCK_HASH_SIZE);
     current_offset += BLOCK_HASH_SIZE;
 
-    // Append all transaction IDs (binary)
+    // Append all transaction IDs (hex string)
     for (size_t i = 0; i < block->num_transactions; i++) {
-        // block->transactions[i]->transaction_id is already uint8_t[SHA256_HASH_SIZE]
-        memcpy(data_to_hash_buffer + current_offset, block->transactions[i]->transaction_id, SHA256_HASH_SIZE);
-        current_offset += SHA256_HASH_SIZE;
+        // block->transactions[i]->transaction_id is char[TRANSACTION_ID_LEN + 1] (hex string)
+        memcpy(data_to_hash_buffer + current_offset, block->transactions[i]->transaction_id, TRANSACTION_ID_LEN);
+        current_offset += TRANSACTION_ID_LEN;
     }
 
     // --- Step 3: Perform SHA256 hashing ---
@@ -220,10 +232,15 @@ int block_is_valid(const Block* block, int difficulty) {
         // Note: hasher_bytes_to_hex returns a dynamically allocated string,
         // so these calls create memory leaks if not freed.
         // For debugging/logging, often acceptable, but ideally use _buf version.
+        char stored_hash_hex[HASH_HEX_LEN + 1];
+        char calculated_hash_hex[HASH_HEX_LEN + 1];
+        hasher_bytes_to_hex_buf(block->hash, BLOCK_HASH_SIZE, stored_hash_hex, sizeof(stored_hash_hex));
+        hasher_bytes_to_hex_buf(calculated_hash, BLOCK_HASH_SIZE, calculated_hash_hex, sizeof(calculated_hash_hex));
+
         logger_log(LOG_LEVEL_WARN, "Block #%u hash mismatch. Stored: %s, Calculated: %s",
-                           block->index,
-                           hasher_bytes_to_hex(block->hash, BLOCK_HASH_SIZE),
-                           hasher_bytes_to_hex(calculated_hash, BLOCK_HASH_SIZE));
+                                   block->index,
+                                   stored_hash_hex,
+                                   calculated_hash_hex);
         return -1;
     }
 
@@ -241,9 +258,10 @@ int block_is_valid(const Block* block, int difficulty) {
     // Verify all transactions within the block
     for (size_t i = 0; i < block->num_transactions; i++) {
         if (block->transactions[i] == NULL || transaction_is_valid(block->transactions[i]) != 0) {
-            char tx_id_hex[HASH_HEX_LEN + 1]; // Use HASH_HEX_LEN
+            char tx_id_hex[HASH_HEX_LEN + 1]; // This is used here, so keep it!
             if (block->transactions[i] != NULL) {
-                hasher_bytes_to_hex_buf(block->transactions[i]->transaction_id, SHA256_HASH_SIZE, tx_id_hex, sizeof(tx_id_hex)); // Fixed buf_len
+                // transaction->transaction_id is already hex string, so just copy it
+                snprintf(tx_id_hex, sizeof(tx_id_hex), "%s", block->transactions[i]->transaction_id);
                 logger_log(LOG_LEVEL_WARN, "Invalid transaction %s found in Block #%u at index %zu.", tx_id_hex, block->index, i);
             } else {
                 logger_log(LOG_LEVEL_WARN, "NULL transaction pointer found in Block #%u at index %zu.", block->index, i);
@@ -273,7 +291,7 @@ void block_destroy(Block* block) {
             if (block->transactions[i] != NULL) {
                 // The transaction_destroy function should handle freeing
                 // encrypted_medical_data within the Transaction struct.
-                transaction_destroy(block->transactions[i]);
+                transaction_destroy(block->transactions[i]); // Correct call
             }
         }
         free(block->transactions); // Free the array of Transaction pointers
@@ -302,15 +320,15 @@ void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SI
     hasher_bytes_to_hex_buf(block->prev_hash, BLOCK_HASH_SIZE, prev_hash_hex, sizeof(prev_hash_hex));
 
     print_bold_cyan("--- Block #%u ---\n", block->index); // Use print_bold_cyan
-    print_yellow("  Timestamp:    ");
+    print_yellow("  Timestamp:     ");
     printf("%lld (", (long long)block->timestamp);
     print_bright_black("%s", ctime((const time_t *)&block->timestamp));
     printf(")\n");
-    print_yellow("  Prev Hash:    ");
+    print_yellow("  Prev Hash:     ");
     printf("%s\n", prev_hash_hex);
-    print_yellow("  Hash:         ");
+    print_yellow("  Hash:          ");
     printf("%s\n", hash_hex);
-    print_yellow("  Nonce:        ");
+    print_yellow("  Nonce:         ");
     printf("%u\n", block->nonce);
     print_yellow("  Transactions: ");
     printf("%zu\n", block->num_transactions);
@@ -324,7 +342,7 @@ void block_print(const Block* block, const uint8_t encryption_key[AES_256_KEY_SI
                 print_red("    Tx %zu: (NULL)\n", i);
                 continue;
             }
-            transaction_print(tx, encryption_key);
+            transaction_print(tx, encryption_key); // Corrected function call
         }
     } else {
         print_yellow("  No transactions in this block.\n");
