@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h> // For size_t
-#include <stdbool.h> // <--- ADD THIS LINE to define 'bool' type
+#include <stdbool.h>
 #include "../crypto/hasher.h"       // For SHA256_HEX_LEN, SHA256_DIGEST_LENGTH (previously SHA256_HASH_SIZE)
 #include "../medical/medical_record.h" // Make sure MedicalRecord struct is defined here
 #include "../security/encryption.h" // For AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE, AES_256_KEY_SIZE
@@ -31,14 +31,12 @@ typedef enum {
 typedef struct Transaction {
     TransactionType type;                   ///< The type of transaction (e.g., new record, access request).
     int64_t timestamp;                      ///< Time of transaction creation (Unix timestamp).
-    char transaction_id[TRANSACTION_ID_LEN + 1]; // <--- CORRECTED: Using TRANSACTION_ID_LEN
+    char transaction_id[TRANSACTION_ID_LEN + 1];
 
     // Public key of the sender/initiator of the transaction (hex string)
-    // Assuming public key hash or ID fits here. Adjust size as needed.
     char sender_public_key_hash[SHA256_HEX_LEN + 1];
 
     // Signature of the transaction by the sender's private key
-    // Assuming a fixed size for the signature, e.g., 64 bytes for ECDSA (128 hex chars)
     char signature[SHA256_HEX_LEN * 2 + 1]; // Example: If ECDSA 64-byte signature, it's 128 hex chars.
 
     // Specific data for different transaction types
@@ -48,7 +46,7 @@ typedef struct Transaction {
             // Encrypted medical data (raw bytes)
             uint8_t* encrypted_data;
             size_t encrypted_data_len;
-            uint8_t iv[AES_GCM_IV_SIZE]; // Initialization Vector for AES-GCM
+            uint8_t iv[AES_GCM_IV_SIZE];   // Initialization Vector for AES-GCM
             uint8_t tag[AES_GCM_TAG_SIZE]; // Authentication Tag for AES-GCM
 
             // Hash of the unencrypted medical record data (for integrity check, hex string)
@@ -81,7 +79,7 @@ Transaction* transaction_create(TransactionType type,
 /**
  * @brief Adds new medical record data to a TX_NEW_RECORD transaction.
  * @param tx The transaction of type TX_NEW_RECORD.
- * @param encrypted_data The encrypted medical data (dynamically allocated).
+ * @param encrypted_data The encrypted medical data (dynamically allocated). Marked const as this function copies it.
  * @param encrypted_data_len Length of the encrypted data.
  * @param iv The IV used for encryption.
  * @param tag The GCM tag generated during encryption.
@@ -89,10 +87,10 @@ Transaction* transaction_create(TransactionType type,
  * @return 0 on success, -1 on failure.
  */
 int transaction_set_new_record_data(Transaction* tx,
-                                     uint8_t* encrypted_data, size_t encrypted_data_len,
-                                     const uint8_t iv[AES_GCM_IV_SIZE],
-                                     const uint8_t tag[AES_GCM_TAG_SIZE],
-                                     const char original_record_hash[SHA256_HEX_LEN + 1]);
+                                    const uint8_t* encrypted_data, size_t encrypted_data_len, // <<-- CHANGED: ADDED 'const'
+                                    const uint8_t iv[AES_GCM_IV_SIZE],
+                                    const uint8_t tag[AES_GCM_TAG_SIZE],
+                                    const char original_record_hash[SHA256_HEX_LEN + 1]);
 
 /**
  * @brief Sets data for access control transactions (TX_REQUEST_ACCESS, TX_GRANT_ACCESS, TX_REVOKE_ACCESS).
@@ -108,11 +106,11 @@ int transaction_set_access_control_data(Transaction* tx,
 /**
  * @brief Calculates the hash of a transaction.
  * The transaction ID is the hash of its content.
- * @param tx A pointer to the transaction.
+ * @param tx A pointer to the transaction. Marked const as this function should not modify tx content.
  * @param output_hash A buffer to store the calculated hash (SHA256_DIGEST_LENGTH bytes).
  * @return 0 on success, -1 on failure.
  */
-int transaction_calculate_hash(Transaction* tx, uint8_t output_hash[SHA256_DIGEST_LENGTH]);
+int transaction_calculate_hash(const Transaction* tx, uint8_t output_hash[SHA256_DIGEST_LENGTH]); // <<-- CHANGED: ADDED 'const'
 
 /**
  * @brief Signs a transaction using a dummy mechanism.

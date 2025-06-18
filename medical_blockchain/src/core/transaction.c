@@ -2,7 +2,7 @@
 #include "../crypto/hasher.h" // For hasher_sha256, hasher_bytes_to_hex, SHA256_DIGEST_LENGTH, SHA256_HEX_LEN
 #include "../security/encryption.h" // For AES_GCM_IV_SIZE, AES_GCM_TAG_SIZE, AES_256_KEY_SIZE
 #include "../utils/logger.h"
-#include "../utils/colors.h"
+#include "../utils/colors.h" // For ANSI_COLOR_* macros
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,12 +25,12 @@ static const char* get_transaction_type_string(TransactionType type) {
  * @brief Creates a new transaction.
  * @param type The type of transaction.
  * @param sender_public_key_hash Hex string of sender's public key hash.
- * @param signature Hex string of the transaction's signature.
+ * @param signature Hex string of the transaction's signature. (Initial placeholder, will be updated by transaction_sign)
  * @return A pointer to the newly created Transaction, or NULL on failure.
  */
 Transaction* transaction_create(TransactionType type,
-                                 const char sender_public_key_hash[SHA256_HEX_LEN + 1],
-                                 const char signature[SHA256_HEX_LEN * 2 + 1]) {
+                                const char sender_public_key_hash[SHA256_HEX_LEN + 1],
+                                const char signature[SHA256_HEX_LEN * 2 + 1]) {
     if (sender_public_key_hash == NULL || signature == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Invalid input for transaction_create: sender_public_key_hash or signature is NULL.");
         return NULL;
@@ -45,14 +45,23 @@ Transaction* transaction_create(TransactionType type,
     tx->type = type;
     tx->timestamp = time(NULL);
 
+    // Ensure null-termination for fixed-size string arrays
     strncpy(tx->sender_public_key_hash, sender_public_key_hash, SHA256_HEX_LEN);
-    tx->sender_public_key_hash[SHA256_HEX_LEN] = '\0';
+    tx->sender_public_key_hash[SHA256_HEX_LEN] = '\0'; // Explicit null-termination
 
     strncpy(tx->signature, signature, SHA256_HEX_LEN * 2);
-    tx->signature[SHA256_HEX_LEN * 2] = '\0';
+    tx->signature[SHA256_HEX_LEN * 2] = '\0'; // Explicit null-termination
 
     // The transaction ID will be calculated after setting specific data and signing.
     tx->transaction_id[0] = '\0';
+
+    // Initialize the union member pointer to NULL to prevent dangling pointers
+    // This is crucial for TX_NEW_RECORD to prevent double-free or invalid free later
+    if (type == TX_NEW_RECORD) {
+        tx->data.new_record.encrypted_data = NULL;
+        tx->data.new_record.encrypted_data_len = 0;
+    }
+
 
     logger_log(LOG_LEVEL_DEBUG, "Transaction structure created for type: %s", get_transaction_type_string(type));
 
@@ -62,7 +71,7 @@ Transaction* transaction_create(TransactionType type,
 /**
  * @brief Adds new medical record data to a TX_NEW_RECORD transaction.
  * @param tx The transaction of type TX_NEW_RECORD.
- * @param encrypted_data The encrypted medical data (dynamically allocated).
+ * @param encrypted_data The encrypted medical data (source buffer).
  * @param encrypted_data_len Length of the encrypted data.
  * @param iv The IV used for encryption.
  * @param tag The GCM tag generated during encryption.
@@ -70,38 +79,38 @@ Transaction* transaction_create(TransactionType type,
  * @return 0 on success, -1 on failure.
  */
 int transaction_set_new_record_data(Transaction* tx,
-                                     uint8_t* encrypted_data, size_t encrypted_data_len,
-                                     const uint8_t iv[AES_GCM_IV_SIZE],
-                                     const uint8_t tag[AES_GCM_TAG_SIZE],
-                                     const char original_record_hash[SHA256_HEX_LEN + 1]) {
+                                    const uint8_t* encrypted_data, size_t encrypted_data_len, // Changed to const uint8_t*
+                                    const uint8_t iv[AES_GCM_IV_SIZE],
+                                    const uint8_t tag[AES_GCM_TAG_SIZE],
+                                    const char original_record_hash[SHA256_HEX_LEN + 1]) {
     if (tx == NULL || tx->type != TX_NEW_RECORD || encrypted_data == NULL || original_record_hash == NULL ||
         encrypted_data_len == 0 || iv == NULL || tag == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Invalid input for transaction_set_new_record_data or transaction type mismatch.");
         return -1;
     }
 
-    // Free any existing data if this function is called multiple times on the same tx
+    // Free any existing data to prevent memory leaks if this function is called multiple times on the same tx
     if (tx->data.new_record.encrypted_data != NULL) {
         free(tx->data.new_record.encrypted_data);
+        tx->data.new_record.encrypted_data = NULL; // Set to NULL after freeing
     }
 
+    // Allocate new memory for the encrypted data and copy it (DEEP COPY)
     tx->data.new_record.encrypted_data = (uint8_t*)malloc(encrypted_data_len);
     if (tx->data.new_record.encrypted_data == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for encrypted data.");
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for encrypted data in transaction.");
         return -1;
     }
     memcpy(tx->data.new_record.encrypted_data, encrypted_data, encrypted_data_len);
     tx->data.new_record.encrypted_data_len = encrypted_data_len;
 
+    // Copy IV and Tag (fixed size arrays)
     memcpy(tx->data.new_record.iv, iv, AES_GCM_IV_SIZE);
     memcpy(tx->data.new_record.tag, tag, AES_GCM_TAG_SIZE);
 
+    // Copy original_record_hash (fixed-size char array) and ensure null-termination
     strncpy(tx->data.new_record.original_record_hash, original_record_hash, SHA256_HEX_LEN);
-    tx->data.new_record.original_record_hash[SHA256_HEX_LEN] = '\0';
-
-    // Note: Transaction ID calculation and signing are typically done *after* all data is set
-    // You'd call transaction_sign() after setting all the data for the transaction.
-    // The current placement calculates the ID here, but the signature is set by transaction_sign.
+    tx->data.new_record.original_record_hash[SHA256_HEX_LEN] = '\0'; // Explicit null-termination
 
     logger_log(LOG_LEVEL_DEBUG, "New record data set for transaction (ID will be set on signing). Encrypted data length: %zu", encrypted_data_len);
     return 0;
@@ -115,22 +124,21 @@ int transaction_set_new_record_data(Transaction* tx,
  * @return 0 on success, -1 on failure.
  */
 int transaction_set_access_control_data(Transaction* tx,
-                                         const char related_record_hash[SHA256_HEX_LEN + 1],
-                                         const char target_user_public_key_hash[SHA256_HEX_LEN + 1]) {
+                                        const char related_record_hash[SHA256_HEX_LEN + 1],
+                                        const char target_user_public_key_hash[SHA256_HEX_LEN + 1]) {
     if (tx == NULL || (tx->type != TX_REQUEST_ACCESS && tx->type != TX_GRANT_ACCESS && tx->type != TX_REVOKE_ACCESS) ||
         related_record_hash == NULL || target_user_public_key_hash == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Invalid input for transaction_set_access_control_data or transaction type mismatch.");
         return -1;
     }
 
+    // Copy related_record_hash and ensure null-termination
     strncpy(tx->data.access_control.related_record_hash, related_record_hash, SHA256_HEX_LEN);
     tx->data.access_control.related_record_hash[SHA256_HEX_LEN] = '\0';
 
+    // Copy target_user_public_key_hash and ensure null-termination
     strncpy(tx->data.access_control.target_user_public_key_hash, target_user_public_key_hash, SHA256_HEX_LEN);
     tx->data.access_control.target_user_public_key_hash[SHA256_HEX_LEN] = '\0';
-
-    // Note: Transaction ID calculation and signing are typically done *after* all data is set
-    // You'd call transaction_sign() after setting all the data for the transaction.
 
     logger_log(LOG_LEVEL_DEBUG, "Access control data set for transaction (ID will be set on signing).");
     return 0;
@@ -143,7 +151,7 @@ int transaction_set_access_control_data(Transaction* tx,
  * @param output_hash A buffer to store the calculated hash (SHA256_DIGEST_LENGTH bytes).
  * @return 0 on success, -1 on failure.
  */
-int transaction_calculate_hash(Transaction* tx, uint8_t output_hash[SHA256_DIGEST_LENGTH]) {
+int transaction_calculate_hash(const Transaction* tx, uint8_t output_hash[SHA256_DIGEST_LENGTH]) { // Added const to tx
     if (tx == NULL || output_hash == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Invalid input for transaction_calculate_hash: tx or output_hash is NULL.");
         return -1;
@@ -178,21 +186,20 @@ int transaction_calculate_hash(Transaction* tx, uint8_t output_hash[SHA256_DIGES
     // Append data specific to the transaction type
     switch (tx->type) {
         case TX_NEW_RECORD:
-            offset = snprintf(data_buffer, sizeof(data_buffer),
-                              "%s%zu",
-                              tx->data.new_record.original_record_hash,
-                              tx->data.new_record.encrypted_data_len);
-            if (offset < 0 || (size_t)offset >= sizeof(data_buffer)) {
-                logger_log(LOG_LEVEL_ERROR, "Error or overflow during new record payload data formatting for transaction hash.");
-                EVP_MD_CTX_free(ctx);
-                return -1;
-            }
-            hasher_sha256_stream_update(ctx, (const uint8_t*)data_buffer, offset);
+            // The original_record_hash is also fixed size string.
+            // No need to snprintf again; directly update.
+            hasher_sha256_stream_update(ctx, (const uint8_t*)tx->data.new_record.original_record_hash, strlen(tx->data.new_record.original_record_hash));
+            // Append length as well if it's part of the hash digest
+            snprintf(data_buffer, sizeof(data_buffer), "%zu", tx->data.new_record.encrypted_data_len);
+            hasher_sha256_stream_update(ctx, (const uint8_t*)data_buffer, strlen(data_buffer));
+
 
             if (tx->data.new_record.encrypted_data != NULL && tx->data.new_record.encrypted_data_len > 0) {
                 hasher_sha256_stream_update(ctx, tx->data.new_record.encrypted_data, tx->data.new_record.encrypted_data_len);
             } else {
+                // This warning should be an error if encrypted_data is mandatory for TX_NEW_RECORD
                 logger_log(LOG_LEVEL_WARN, "TX_NEW_RECORD has no encrypted data for hash calculation. This might be an error.");
+                // For a robust system, you might return -1 here. For now, just log.
             }
             hasher_sha256_stream_update(ctx, tx->data.new_record.iv, AES_GCM_IV_SIZE);
             hasher_sha256_stream_update(ctx, tx->data.new_record.tag, AES_GCM_TAG_SIZE);
@@ -200,16 +207,9 @@ int transaction_calculate_hash(Transaction* tx, uint8_t output_hash[SHA256_DIGES
         case TX_REQUEST_ACCESS:
         case TX_GRANT_ACCESS:
         case TX_REVOKE_ACCESS:
-            offset = snprintf(data_buffer, sizeof(data_buffer),
-                              "%s%s",
-                              tx->data.access_control.related_record_hash,
-                              tx->data.access_control.target_user_public_key_hash);
-            if (offset < 0 || (size_t)offset >= sizeof(data_buffer)) {
-                logger_log(LOG_LEVEL_ERROR, "Error or overflow during access control payload data formatting for transaction hash.");
-                EVP_MD_CTX_free(ctx);
-                return -1;
-            }
-            hasher_sha256_stream_update(ctx, (const uint8_t*)data_buffer, offset);
+            // Access control data are fixed-size strings.
+            hasher_sha256_stream_update(ctx, (const uint8_t*)tx->data.access_control.related_record_hash, strlen(tx->data.access_control.related_record_hash));
+            hasher_sha256_stream_update(ctx, (const uint8_t*)tx->data.access_control.target_user_public_key_hash, strlen(tx->data.access_control.target_user_public_key_hash));
             break;
         default:
             logger_log(LOG_LEVEL_WARN, "Unknown transaction type (%d) during hash calculation. Payload not fully included.", tx->type);
@@ -255,9 +255,10 @@ int transaction_sign(Transaction* tx, const char* private_key_hex) {
         logger_log(LOG_LEVEL_ERROR, "Failed to convert transaction data hash to hex for ID.");
         return -1;
     }
+    // Copy to fixed-size array and ensure null-termination
     strncpy(tx->transaction_id, tx_id_hex, SHA256_HEX_LEN);
     tx->transaction_id[SHA256_HEX_LEN] = '\0';
-    free(tx_id_hex); // Free the dynamically allocated hex string
+    free(tx_id_hex); // Free the dynamically allocated hex string from hasher_bytes_to_hex
 
     // --- DUMMY SIGNATURE GENERATION ---
     // In a real system, you would use a cryptographic library (like OpenSSL's ECDSA functions)
@@ -266,7 +267,8 @@ int transaction_sign(Transaction* tx, const char* private_key_hex) {
     // transaction ID and the provided "private_key_hex" string. This is NOT CRYPTOGRAPHICALLY SECURE.
 
     // Concatenate the "private key" and the transaction ID string for a deterministic dummy signature
-    size_t concat_len = strlen(private_key_hex) + SHA256_HEX_LEN;
+    // Make buffer large enough for both strings + null terminator
+    size_t concat_len = strlen(private_key_hex) + strlen(tx->transaction_id);
     char* data_to_sign_dummy = (char*)malloc(concat_len + 1);
     if (data_to_sign_dummy == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for dummy signature base.");
@@ -275,13 +277,13 @@ int transaction_sign(Transaction* tx, const char* private_key_hex) {
     snprintf(data_to_sign_dummy, concat_len + 1, "%s%s", private_key_hex, tx->transaction_id);
 
     uint8_t dummy_signature_binary[SHA256_DIGEST_LENGTH];
-    // This line had the error. Assuming hasher_sha256 returns int.
+    // Check return value of hasher_sha256 (it returns int, 0 for success)
     if (hasher_sha256((const uint8_t*)data_to_sign_dummy, strlen(data_to_sign_dummy), dummy_signature_binary) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to hash dummy signature base.");
         free(data_to_sign_dummy);
         return -1;
     }
-    free(data_to_sign_dummy);
+    free(data_to_sign_dummy); // Free the temporary buffer
 
     char* dummy_signature_hex = hasher_bytes_to_hex(dummy_signature_binary, SHA256_DIGEST_LENGTH);
     if (dummy_signature_hex == NULL) {
@@ -289,10 +291,10 @@ int transaction_sign(Transaction* tx, const char* private_key_hex) {
         return -1;
     }
 
-    // Copy the dummy signature into the transaction structure
+    // Copy the dummy signature into the transaction structure and ensure null-termination
     strncpy(tx->signature, dummy_signature_hex, SHA256_HEX_LEN * 2); // Use the full signature buffer size
-    tx->signature[SHA256_HEX_LEN * 2] = '\0';
-    free(dummy_signature_hex);
+    tx->signature[SHA256_HEX_LEN * 2] = '\0'; // Explicit null-termination
+    free(dummy_signature_hex); // Free the dynamically allocated hex string
 
     logger_log(LOG_LEVEL_INFO, "Transaction %s signed (using dummy signature).", tx->transaction_id);
     return 0;
@@ -320,7 +322,7 @@ bool transaction_verify_signature(const Transaction* tx) {
     // Cast away constness for transaction_calculate_hash as it modifies internal hash context
     // This cast is generally safe here because transaction_calculate_hash doesn't modify the
     // *content* of 'tx', only its internal hash state (the EVP_MD_CTX).
-    if (transaction_calculate_hash((Transaction*)tx, recomputed_tx_data_hash_binary) != 0) {
+    if (transaction_calculate_hash(tx, recomputed_tx_data_hash_binary) != 0) { // Removed unnecessary cast, tx is const in this function
         logger_log(LOG_LEVEL_ERROR, "Failed to recalculate transaction data hash for signature verification.");
         return false;
     }
@@ -347,7 +349,8 @@ bool transaction_verify_signature(const Transaction* tx) {
 
     const char* dummy_private_key_string = "CLI_PrivateKey_For_Signing_Tx"; // Must match the one used in transaction_sign
 
-    size_t concat_len = strlen(dummy_private_key_string) + SHA256_HEX_LEN;
+    // Make buffer large enough for both strings + null terminator
+    size_t concat_len = strlen(dummy_private_key_string) + strlen(tx->transaction_id);
     char* expected_data_to_sign_dummy = (char*)malloc(concat_len + 1);
     if (expected_data_to_sign_dummy == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for expected dummy signature base.");
@@ -356,13 +359,13 @@ bool transaction_verify_signature(const Transaction* tx) {
     snprintf(expected_data_to_sign_dummy, concat_len + 1, "%s%s", dummy_private_key_string, tx->transaction_id);
 
     uint8_t expected_dummy_signature_binary[SHA256_DIGEST_LENGTH];
-    // This line had the error. Assuming hasher_sha256 returns int.
+    // Check return value of hasher_sha256 (it returns int, 0 for success)
     if (hasher_sha256((const uint8_t*)expected_data_to_sign_dummy, strlen(expected_data_to_sign_dummy), expected_dummy_signature_binary) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to hash expected dummy signature base during verification.");
         free(expected_data_to_sign_dummy);
         return false;
     }
-    free(expected_data_to_sign_dummy);
+    free(expected_data_to_sign_dummy); // Free the temporary buffer
 
     char* expected_dummy_signature_hex = hasher_bytes_to_hex(expected_dummy_signature_binary, SHA256_DIGEST_LENGTH);
     if (expected_dummy_signature_hex == NULL) {
@@ -378,7 +381,7 @@ bool transaction_verify_signature(const Transaction* tx) {
         logger_log(LOG_LEVEL_DEBUG, "Dummy signature verified successfully for transaction %s.", tx->transaction_id);
     }
 
-    free(expected_dummy_signature_hex);
+    free(expected_dummy_signature_hex); // Free the dynamically allocated hex string
     return is_valid;
 }
 
@@ -397,10 +400,8 @@ int transaction_is_valid(const Transaction* tx) {
 
     // 1. Check for valid transaction ID by recalculating
     uint8_t recomputed_tx_hash_binary[SHA256_DIGEST_LENGTH];
-    // Cast away constness for transaction_calculate_hash as it modifies internal hash context
-    // This cast is generally safe here because transaction_calculate_hash doesn't modify the
-    // *content* of 'tx', only its internal hash state (the EVP_MD_CTX).
-    if (transaction_calculate_hash((Transaction*)tx, recomputed_tx_hash_binary) != 0) {
+    // Removed unnecessary const cast from (Transaction*)tx, tx is already const here.
+    if (transaction_calculate_hash(tx, recomputed_tx_hash_binary) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to recalculate hash for transaction %s during validation.", tx->transaction_id);
         return -1;
     }
@@ -468,11 +469,15 @@ void transaction_destroy(Transaction* tx) {
     }
     // Free dynamically allocated members within the union
     if (tx->type == TX_NEW_RECORD && tx->data.new_record.encrypted_data != NULL) {
+        logger_log(LOG_LEVEL_DEBUG, "Freeing encrypted data for TX_NEW_RECORD.");
         free(tx->data.new_record.encrypted_data);
-        tx->data.new_record.encrypted_data = NULL;
+        tx->data.new_record.encrypted_data = NULL; // Important: Set to NULL after freeing
     }
-    free(tx);
-    logger_log(LOG_LEVEL_DEBUG, "Transaction destroyed.");
+    // No need to free tx->sender_public_key_hash or tx->signature
+    // because they are fixed-size arrays within the struct, not pointers to malloc'd memory.
+
+    free(tx); // Free the transaction structure itself
+    logger_log(LOG_LEVEL_DEBUG, "Transaction structure destroyed.");
 }
 
 
@@ -488,11 +493,10 @@ void transaction_print(const Transaction* tx, const uint8_t encryption_key[AES_2
         return;
     }
     printf(ANSI_COLOR_BLUE "--- Transaction Details ---\n" ANSI_COLOR_RESET);
-    printf(ANSI_COLOR_BLUE "  Transaction ID:          " ANSI_COLOR_RESET "%s\n", tx->transaction_id);
-    printf(ANSI_COLOR_BLUE "  Type:                    " ANSI_COLOR_RESET "%s (%d)\n", get_transaction_type_string(tx->type), tx->type);
+    printf(ANSI_COLOR_BLUE "  Transaction ID:            " ANSI_COLOR_RESET "%s\n", tx->transaction_id);
+    printf(ANSI_COLOR_BLUE "  Type:                      " ANSI_COLOR_RESET "%s (%d)\n", get_transaction_type_string(tx->type), tx->type);
     printf(ANSI_COLOR_BLUE "  Sender Public Key Hash:" ANSI_COLOR_RESET "%s\n", tx->sender_public_key_hash);
-    // Corrected ctime usage by casting to time_t*
-    printf(ANSI_COLOR_BLUE "  Timestamp:               " ANSI_COLOR_RESET "%ld (" ANSI_COLOR_BRIGHT_BLACK "%s" ANSI_COLOR_RESET ")", (long)tx->timestamp, ctime((const time_t*)&tx->timestamp)); // ctime adds newline
+    printf(ANSI_COLOR_BLUE "  Timestamp:                 " ANSI_COLOR_RESET "%ld (" ANSI_COLOR_BRIGHT_BLACK "%s" ANSI_COLOR_RESET ")", (long)tx->timestamp, ctime((const time_t*)&tx->timestamp)); // ctime adds newline
 
     printf(ANSI_COLOR_MAGENTA "  Payload: \n" ANSI_COLOR_RESET);
     switch (tx->type) {
@@ -510,20 +514,31 @@ void transaction_print(const Transaction* tx, const uint8_t encryption_key[AES_2
             }
             printf("\n");
 
-            if (encryption_key != NULL && tx->data.new_record.encrypted_data != NULL) {
-                // Placeholder for decryption logic
-                logger_log(LOG_LEVEL_INFO, "Attempting to decrypt medical record data (not implemented here).");
-                // uint8_t* decrypted_data = NULL;
-                // size_t decrypted_data_len = 0;
-                // if (decrypt_data(encryption_key, tx->data.new_record.iv, tx->data.new_record.tag,
-                //                  tx->data.new_record.encrypted_data, tx->data.new_record.encrypted_data_len,
-                //                  &decrypted_data, &decrypted_data_len) == 0) {
-                //    printf(ANSI_COLOR_GREEN "    Decrypted Data (partial): %.*s...\n" ANSI_COLOR_RESET,
-                //           (int)(decrypted_data_len > 100 ? 100 : decrypted_data_len), decrypted_data);
-                //    free(decrypted_data);
-                // } else {
-                //    logger_log(LOG_LEVEL_WARN, "Failed to decrypt medical record data.");
-                // }
+            if (encryption_key != NULL && tx->data.new_record.encrypted_data != NULL && tx->data.new_record.encrypted_data_len > 0) {
+                uint8_t* decrypted_data = NULL;
+                int decrypted_data_len = 0; // Decryption functions usually return int for length or error
+
+                decrypted_data_len = encryption_decrypt_aes_gcm(
+                    tx->data.new_record.encrypted_data,
+                    (int)tx->data.new_record.encrypted_data_len,
+                    encryption_key,
+                    tx->data.new_record.iv,
+                    tx->data.new_record.tag,
+                    &decrypted_data // Pass address to store malloc'd decrypted data
+                );
+
+                if (decrypted_data_len > 0 && decrypted_data != NULL) {
+                    printf(ANSI_COLOR_GREEN "    Decrypted Data: %.*s\n" ANSI_COLOR_RESET,
+                           decrypted_data_len, (char*)decrypted_data);
+                    free(decrypted_data); // Free the memory allocated by decryption function
+                } else {
+                    logger_log(LOG_LEVEL_WARN, "Failed to decrypt medical record data for transaction %s (error code: %d).", tx->transaction_id, decrypted_data_len);
+                    printf(ANSI_COLOR_RED "    Decryption failed or no data to decrypt.\n" ANSI_COLOR_RESET);
+                }
+            } else if (encryption_key == NULL) {
+                printf(ANSI_COLOR_YELLOW "    (Medical data encrypted - pass --decrypt with key to attempt decryption)\n" ANSI_COLOR_RESET);
+            } else {
+                printf(ANSI_COLOR_YELLOW "    (No encrypted data or zero length for decryption.)\n" ANSI_COLOR_RESET);
             }
             break;
         case TX_REQUEST_ACCESS:
@@ -537,19 +552,17 @@ void transaction_print(const Transaction* tx, const uint8_t encryption_key[AES_2
             break;
     }
 
-    printf(ANSI_COLOR_BLUE "  Signature:               " ANSI_COLOR_RESET "%s\n", tx->signature);
+    printf(ANSI_COLOR_BLUE "  Signature:                   " ANSI_COLOR_RESET "%s\n", tx->signature);
     printf(ANSI_COLOR_BLUE "--------------------------------------------------\n" ANSI_COLOR_RESET);
 }
 
-// Serialization and Deserialization functions remain placeholders as they are complex
-// and depend on your exact binary format requirements for network/disk storage.
+// --- Serialization and Deserialization functions ---
 
 /**
- * @brief Placeholder for serialization - very basic, needs to handle union correctly
- * This function is a minimal placeholder. Proper serialization needs to
- * handle all fields, including the union, in a defined binary format.
- * For now, we'll just serialize key string fields for demonstration.
- * A robust solution would use a library or manual packed binary format.
+ * @brief Serializes a transaction into a byte array.
+ * This implementation aims to be more robust for `TX_NEW_RECORD` by handling
+ * the dynamically allocated `encrypted_data`. It includes length prefixes
+ * for variable-sized data.
  * @param tx A pointer to the Transaction.
  * @param size A pointer to store the size of the serialized data.
  * @return A pointer to the serialized data, or NULL on failure.
@@ -560,74 +573,188 @@ uint8_t* transaction_serialize(const Transaction* tx, size_t* size) {
         return NULL;
     }
 
-    // Estimate size for a simple byte copy (not truly robust for variable data)
-    size_t total_size = sizeof(Transaction);
-    if (tx->type == TX_NEW_RECORD && tx->data.new_record.encrypted_data_len > 0) {
-        // Account for the dynamically allocated encrypted_data
-        total_size += tx->data.new_record.encrypted_data_len;
+    // Fixed-size part of the Transaction struct (excluding the union's dynamic data)
+    // We'll manually serialize based on known sizes to handle padding, etc.
+    // Assuming Transaction struct has: type, timestamp, sender_public_key_hash, transaction_id, signature.
+    // This is a simplified approach, a real serialization would often define a precise protocol.
+    size_t base_size = sizeof(tx->type) + sizeof(tx->timestamp) +
+                       (SHA256_HEX_LEN + 1) + (SHA256_HEX_LEN + 1) + (SHA256_HEX_LEN * 2 + 1); // Add sizes of fixed arrays + null terminators
+
+    size_t payload_size = 0;
+    size_t encrypted_data_actual_len = 0; // To store actual length for TX_NEW_RECORD
+
+    // Calculate payload size based on type
+    if (tx->type == TX_NEW_RECORD) {
+        payload_size += sizeof(tx->data.new_record.encrypted_data_len); // Store the length itself
+        payload_size += AES_GCM_IV_SIZE;
+        payload_size += AES_GCM_TAG_SIZE;
+        payload_size += (SHA256_HEX_LEN + 1); // original_record_hash + null
+        if (tx->data.new_record.encrypted_data != NULL) {
+            encrypted_data_actual_len = tx->data.new_record.encrypted_data_len;
+            payload_size += encrypted_data_actual_len;
+        }
+    } else if (tx->type == TX_REQUEST_ACCESS || tx->type == TX_GRANT_ACCESS || tx->type == TX_REVOKE_ACCESS) {
+        payload_size += (SHA256_HEX_LEN + 1); // related_record_hash + null
+        payload_size += (SHA256_HEX_LEN + 1); // target_user_public_key_hash + null
     }
 
-    uint8_t* buffer = (uint8_t*)malloc(total_size);
+    *size = base_size + payload_size;
+    uint8_t* buffer = (uint8_t*)malloc(*size);
     if (!buffer) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for serialization buffer.");
         *size = 0;
         return NULL;
     }
 
-    // This is a naive copy. A real serialization should be explicit about byte order,
-    // string lengths, and union content.
-    memcpy(buffer, tx, sizeof(Transaction));
+    uint8_t* ptr = buffer;
 
-    // For TX_NEW_RECORD, append the encrypted data if present
-    if (tx->type == TX_NEW_RECORD && tx->data.new_record.encrypted_data != NULL) {
-        memcpy(buffer + sizeof(Transaction), tx->data.new_record.encrypted_data, tx->data.new_record.encrypted_data_len);
+    // Copy fixed fields
+    memcpy(ptr, &tx->type, sizeof(tx->type));
+    ptr += sizeof(tx->type);
+    memcpy(ptr, &tx->timestamp, sizeof(tx->timestamp));
+    ptr += sizeof(tx->timestamp);
+    memcpy(ptr, tx->sender_public_key_hash, SHA256_HEX_LEN + 1); // Including null terminator
+    ptr += (SHA256_HEX_LEN + 1);
+    memcpy(ptr, tx->transaction_id, SHA256_HEX_LEN + 1); // Including null terminator
+    ptr += (SHA256_HEX_LEN + 1);
+    memcpy(ptr, tx->signature, SHA256_HEX_LEN * 2 + 1); // Including null terminator
+    ptr += (SHA256_HEX_LEN * 2 + 1);
+
+    // Copy payload based on type
+    if (tx->type == TX_NEW_RECORD) {
+        memcpy(ptr, &tx->data.new_record.encrypted_data_len, sizeof(tx->data.new_record.encrypted_data_len));
+        ptr += sizeof(tx->data.new_record.encrypted_data_len);
+        if (encrypted_data_actual_len > 0) {
+            memcpy(ptr, tx->data.new_record.encrypted_data, encrypted_data_actual_len);
+            ptr += encrypted_data_actual_len;
+        }
+        memcpy(ptr, tx->data.new_record.iv, AES_GCM_IV_SIZE);
+        ptr += AES_GCM_IV_SIZE;
+        memcpy(ptr, tx->data.new_record.tag, AES_GCM_TAG_SIZE);
+        ptr += AES_GCM_TAG_SIZE;
+        memcpy(ptr, tx->data.new_record.original_record_hash, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
+    } else if (tx->type == TX_REQUEST_ACCESS || tx->type == TX_GRANT_ACCESS || tx->type == TX_REVOKE_ACCESS) {
+        memcpy(ptr, tx->data.access_control.related_record_hash, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
+        memcpy(ptr, tx->data.access_control.target_user_public_key_hash, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
     }
 
-    *size = total_size;
-
-    logger_log(LOG_LEVEL_DEBUG, "Transaction serialized (placeholder). Size: %zu", *size);
     return buffer;
 }
 
+
 /**
- * @brief Placeholder for deserialization
- * This function is a minimal placeholder. Proper deserialization needs to
- * reconstruct the Transaction struct from a defined binary format,
- * handling variable-length data and union members correctly.
- * @param data A pointer to the serialized data.
- * @param size The size of the serialized data.
+ * @brief Deserializes a byte array back into a Transaction structure.
+ * This function must allocate memory for the Transaction and its dynamic members.
+ * @param data The byte array containing the serialized transaction.
+ * @param data_len The length of the byte array.
  * @return A pointer to the deserialized Transaction, or NULL on failure.
  */
-Transaction* transaction_deserialize(const uint8_t* data, size_t size) {
-    if (!data || size < sizeof(Transaction)) {
+Transaction* transaction_deserialize(const uint8_t* data, size_t data_len) {
+    if (!data || data_len == 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input for transaction_deserialize: data is NULL or data_len is 0.");
         return NULL;
     }
 
-    Transaction* tx = (Transaction*)malloc(sizeof(Transaction));
-    if (!tx) return NULL;
-
-    // This is a naive copy. A real deserialization should be explicit about byte order,
-    // string lengths, and union content.
-    memcpy(tx, data, sizeof(Transaction));
-
-    // Handle dynamically allocated encrypted_data for TX_NEW_RECORD
-    if (tx->type == TX_NEW_RECORD && tx->data.new_record.encrypted_data_len > 0) {
-        size_t expected_total_size = sizeof(Transaction) + tx->data.new_record.encrypted_data_len;
-        if (size < expected_total_size) {
-            logger_log(LOG_LEVEL_ERROR, "Deserialization error: Incomplete data for TX_NEW_RECORD.");
-            free(tx);
-            return NULL;
-        }
-        tx->data.new_record.encrypted_data = (uint8_t*)malloc(tx->data.new_record.encrypted_data_len);
-        if (tx->data.new_record.encrypted_data == NULL) {
-            logger_log(LOG_LEVEL_ERROR, "Deserialization error: Failed to allocate memory for encrypted data.");
-            free(tx);
-            return NULL;
-        }
-        memcpy(tx->data.new_record.encrypted_data, data + sizeof(Transaction), tx->data.new_record.encrypted_data_len);
-    } else {
-        tx->data.new_record.encrypted_data = NULL; // Ensure it's NULL if not a new record or no data
+    Transaction* tx = (Transaction*)calloc(1, sizeof(Transaction));
+    if (!tx) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for deserialized transaction.");
+        return NULL;
     }
 
-    logger_log(LOG_LEVEL_DEBUG, "Transaction deserialized (placeholder).");
+    const uint8_t* ptr = data;
+    size_t bytes_read = 0;
+
+    // Read fixed fields
+    if (bytes_read + sizeof(tx->type) > data_len) goto deserialize_error;
+    memcpy(&tx->type, ptr, sizeof(tx->type));
+    ptr += sizeof(tx->type);
+    bytes_read += sizeof(tx->type);
+
+    if (bytes_read + sizeof(tx->timestamp) > data_len) goto deserialize_error;
+    memcpy(&tx->timestamp, ptr, sizeof(tx->timestamp));
+    ptr += sizeof(tx->timestamp);
+    bytes_read += sizeof(tx->timestamp);
+
+    if (bytes_read + (SHA256_HEX_LEN + 1) > data_len) goto deserialize_error;
+    memcpy(tx->sender_public_key_hash, ptr, SHA256_HEX_LEN + 1);
+    ptr += (SHA256_HEX_LEN + 1);
+    bytes_read += (SHA256_HEX_LEN + 1);
+
+    if (bytes_read + (SHA256_HEX_LEN + 1) > data_len) goto deserialize_error;
+    memcpy(tx->transaction_id, ptr, SHA256_HEX_LEN + 1);
+    ptr += (SHA256_HEX_LEN + 1);
+    bytes_read += (SHA256_HEX_LEN + 1);
+
+    if (bytes_read + (SHA256_HEX_LEN * 2 + 1) > data_len) goto deserialize_error;
+    memcpy(tx->signature, ptr, SHA256_HEX_LEN * 2 + 1);
+    ptr += (SHA256_HEX_LEN * 2 + 1);
+    bytes_read += (SHA256_HEX_LEN * 2 + 1);
+
+    // Read payload based on type
+    if (tx->type == TX_NEW_RECORD) {
+        if (bytes_read + sizeof(tx->data.new_record.encrypted_data_len) > data_len) goto deserialize_error;
+        memcpy(&tx->data.new_record.encrypted_data_len, ptr, sizeof(tx->data.new_record.encrypted_data_len));
+        ptr += sizeof(tx->data.new_record.encrypted_data_len);
+        bytes_read += sizeof(tx->data.new_record.encrypted_data_len);
+
+        if (tx->data.new_record.encrypted_data_len > 0) {
+            if (bytes_read + tx->data.new_record.encrypted_data_len > data_len) goto deserialize_error;
+            tx->data.new_record.encrypted_data = (uint8_t*)malloc(tx->data.new_record.encrypted_data_len);
+            if (!tx->data.new_record.encrypted_data) {
+                logger_log(LOG_LEVEL_ERROR, "Failed to allocate memory for deserialized encrypted_data.");
+                goto deserialize_error;
+            }
+            memcpy(tx->data.new_record.encrypted_data, ptr, tx->data.new_record.encrypted_data_len);
+            ptr += tx->data.new_record.encrypted_data_len;
+            bytes_read += tx->data.new_record.encrypted_data_len;
+        } else {
+            tx->data.new_record.encrypted_data = NULL; // Ensure it's NULL if length is 0
+        }
+
+        if (bytes_read + AES_GCM_IV_SIZE > data_len) goto deserialize_error;
+        memcpy(tx->data.new_record.iv, ptr, AES_GCM_IV_SIZE);
+        ptr += AES_GCM_IV_SIZE;
+        bytes_read += AES_GCM_IV_SIZE;
+
+        if (bytes_read + AES_GCM_TAG_SIZE > data_len) goto deserialize_error;
+        memcpy(tx->data.new_record.tag, ptr, AES_GCM_TAG_SIZE);
+        ptr += AES_GCM_TAG_SIZE;
+        bytes_read += AES_GCM_TAG_SIZE;
+
+        if (bytes_read + (SHA256_HEX_LEN + 1) > data_len) goto deserialize_error;
+        memcpy(tx->data.new_record.original_record_hash, ptr, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
+        bytes_read += (SHA256_HEX_LEN + 1);
+
+    } else if (tx->type == TX_REQUEST_ACCESS || tx->type == TX_GRANT_ACCESS || tx->type == TX_REVOKE_ACCESS) {
+        if (bytes_read + (SHA256_HEX_LEN + 1) > data_len) goto deserialize_error;
+        memcpy(tx->data.access_control.related_record_hash, ptr, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
+        bytes_read += (SHA256_HEX_LEN + 1);
+
+        if (bytes_read + (SHA256_HEX_LEN + 1) > data_len) goto deserialize_error;
+        memcpy(tx->data.access_control.target_user_public_key_hash, ptr, SHA256_HEX_LEN + 1);
+        ptr += (SHA256_HEX_LEN + 1);
+        bytes_read += (SHA256_HEX_LEN + 1);
+    } else {
+        logger_log(LOG_LEVEL_WARN, "Unknown transaction type (%d) during deserialization.", tx->type);
+        // For unknown types, we might just assume no additional payload or handle specific errors.
+        // For now, allow it to continue without reading more payload data.
+    }
+
+    if (bytes_read != data_len) {
+        logger_log(LOG_LEVEL_WARN, "Deserialization warning: Mismatch in data length. Expected %zu, read %zu.", data_len, bytes_read);
+    }
+
+    logger_log(LOG_LEVEL_DEBUG, "Transaction deserialized successfully. Type: %s", get_transaction_type_string(tx->type));
     return tx;
+
+deserialize_error:
+    logger_log(LOG_LEVEL_ERROR, "Deserialization failed: Insufficient data or memory allocation error. Data len: %zu, Bytes read: %zu, Type: %d",
+               data_len, bytes_read, tx ? tx->type : -1);
+    transaction_destroy(tx); // Clean up any allocated memory
+    return NULL;
 }
