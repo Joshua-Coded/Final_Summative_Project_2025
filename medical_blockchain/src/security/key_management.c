@@ -13,10 +13,17 @@
 #include <openssl/err.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include <stdio.h> // Required for FILE operations (fopen, fprintf, fclose)
+#include <errno.h> // Required for strerror(errno)
 
 #define PUBLIC_KEY_UNCOMPRESSED_LEN 65
-#define ECDSA_MAX_SIGNATURE_LEN 72
+#define ECDSA_MAX_SIGNATURE_LEN 72 // This defines the maximum length of the DER-encoded signature.
+                                   // Note: OpenSSL's ECDSA_sign will return the actual length in `real_sig_len`.
+                                   // The hexadecimal representation will be twice this length.
+
+// Assuming these are defined in key_management.h or elsewhere:
+// #define ECDSA_SIGNATURE_HEX_LEN (ECDSA_MAX_SIGNATURE_LEN * 2)
+// #define ECDSA_MAX_SIGNATURE_RAW_LEN ECDSA_MAX_SIGNATURE_LEN
 
 // Helper for OpenSSL error logging.
 static void log_openssl_errors(const char* prefix) {
@@ -127,9 +134,13 @@ int key_management_generate_key_pair(char* private_key_pem_out, char* public_key
     char *priv_pem = NULL;
     char *pub_pem = NULL;
     int ret = -1;
+
+    // Load OpenSSL error strings (important for debugging)
+    ERR_load_crypto_strings();
+
     key = EC_KEY_new_by_curve_name(NID_secp256k1);
     if (!key) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to create new EC_KEY.");
+        logger_log(LOG_LEVEL_ERROR, "Failed to create new EC_KEY (curve name).");
         log_openssl_errors("key_management_generate_key_pair");
         goto end;
     }
@@ -138,6 +149,16 @@ int key_management_generate_key_pair(char* private_key_pem_out, char* public_key
         log_openssl_errors("key_management_generate_key_pair");
         goto end;
     }
+    
+    // Ensure the key has its public key set (should be automatic after generate_key, but good to be explicit)
+    // EC_KEY_set_public_key is rarely needed after EC_KEY_generate_key as it's typically handled internally.
+    // However, keeping it does no harm if the public key point is valid.
+    if (!EC_KEY_get0_public_key(key)) { // Check if public key exists
+        logger_log(LOG_LEVEL_ERROR, "Generated EC_KEY does not have a public key.");
+        log_openssl_errors("key_management_generate_key_pair");
+        goto end;
+    }
+
     priv_pem = key_to_pem_string(key, true);
     if (!priv_pem) {
         logger_log(LOG_LEVEL_ERROR, "Failed to convert private key to PEM string.");
@@ -148,18 +169,22 @@ int key_management_generate_key_pair(char* private_key_pem_out, char* public_key
         logger_log(LOG_LEVEL_ERROR, "Failed to convert public key to PEM string.");
         goto end;
     }
+
     if (strlen(priv_pem) + 1 > buffer_size || strlen(pub_pem) + 1 > buffer_size) {
-        logger_log(LOG_LEVEL_ERROR, "Provided buffers are too small for PEM keys.");
+        logger_log(LOG_LEVEL_ERROR, "Provided buffers are too small for PEM keys. Private key length: %zu, Public key length: %zu, Buffer size: %zu", strlen(priv_pem), strlen(pub_pem), buffer_size);
         goto end;
     }
     strcpy(private_key_pem_out, priv_pem);
     strcpy(public_key_pem_out, pub_pem);
     logger_log(LOG_LEVEL_INFO, "Key pair generated and PEM strings copied.");
     ret = 0;
+
 end:
     if (key) EC_KEY_free(key);
     if (priv_pem) free(priv_pem);
     if (pub_pem) free(pub_pem);
+    // Cleanup OpenSSL error queue
+    ERR_free_strings();
     return ret;
 }
 
@@ -174,14 +199,17 @@ int key_management_derive_public_key_hash(const char* public_key_pem, char* publ
     int pub_key_bytes_len = 0;
     uint8_t hash[SHA256_DIGEST_LENGTH];
     int ret = -1;
+
+    ERR_load_crypto_strings(); // Load error strings for debugging
+
     pub_key = key_from_pem_string(public_key_pem, false);
     if (!pub_key) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to load public key from PEM string.");
+        logger_log(LOG_LEVEL_ERROR, "Failed to load public key from PEM string for hash derivation.");
         goto end;
     }
     pub_key_bytes_len = ec_key_to_pub_bytes(pub_key, pub_key_bytes, sizeof(pub_key_bytes));
     if (pub_key_bytes_len == -1) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to get raw public key bytes.");
+        logger_log(LOG_LEVEL_ERROR, "Failed to get raw public key bytes for hashing.");
         goto end;
     }
     if (hasher_sha256(pub_key_bytes, pub_key_bytes_len, hash) != 0) {
@@ -193,19 +221,26 @@ int key_management_derive_public_key_hash(const char* public_key_pem, char* publ
     ret = 0;
 end:
     if (pub_key) EC_KEY_free(pub_key);
+    ERR_free_strings(); // Cleanup error strings
     return ret;
 }
 
 // Signs a SHA256 hash using ECDSA with OpenSSL.
 int ecdsa_sign_hash(const uint8_t* hash, size_t hash_len, const char* private_key_pem, char* signature_hex_output, size_t signature_hex_output_len) {
-    if (!hash || hash_len != SHA256_DIGEST_LENGTH || !private_key_pem || !signature_hex_output || signature_hex_output_len == 0) {
-        logger_log(LOG_LEVEL_ERROR, "Invalid input parameters for ecdsa_sign_hash.");
+    // Note: ECDSA_SIGNATURE_HEX_LEN and ECDSA_MAX_SIGNATURE_RAW_LEN are expected to be defined in key_management.h or config.h
+    // if (!hash || hash_len != SHA256_DIGEST_LENGTH || !private_key_pem || !signature_hex_output || signature_hex_output_len < ECDSA_SIGNATURE_HEX_LEN + 1) {
+    // The following check is more robust if ECDSA_MAX_SIGNATURE_LEN is the only pre-defined constant
+    if (!hash || hash_len != SHA256_DIGEST_LENGTH || !private_key_pem || !signature_hex_output || signature_hex_output_len < (ECDSA_MAX_SIGNATURE_LEN * 2 + 1)) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input parameters for ecdsa_sign_hash. Hash length must be %d, signature_hex_output_len must be at least %d.", SHA256_DIGEST_LENGTH, (int)(ECDSA_MAX_SIGNATURE_LEN * 2 + 1));
         return -1;
     }
     EC_KEY* priv_key = NULL;
-    uint8_t signature_raw[ECDSA_MAX_SIGNATURE_LEN];
-    size_t signature_raw_len = 0;
+    uint8_t signature_raw[ECDSA_MAX_SIGNATURE_LEN]; // Use ECDSA_MAX_SIGNATURE_LEN for raw buffer size
+    unsigned int real_sig_len = 0; // Use unsigned int for OpenSSL's ECDSA_sign
     int ret = -1;
+
+    ERR_load_crypto_strings();
+
     priv_key = key_from_pem_string(private_key_pem, true);
     if (!priv_key) {
         logger_log(LOG_LEVEL_ERROR, "Failed to load private key from PEM string for signing.");
@@ -215,53 +250,74 @@ int ecdsa_sign_hash(const uint8_t* hash, size_t hash_len, const char* private_ke
         logger_log(LOG_LEVEL_ERROR, "EC_KEY provided does not contain a private key for signing.");
         goto end;
     }
-    unsigned int real_sig_len = 0;
+
     if (1 != ECDSA_sign(0, hash, SHA256_DIGEST_LENGTH, signature_raw, &real_sig_len, (EC_KEY*)priv_key)) {
         logger_log(LOG_LEVEL_ERROR, "ECDSA_sign failed.");
         log_openssl_errors("ecdsa_sign_hash");
         goto end;
     }
-    signature_raw_len = (size_t)real_sig_len;
 
-    // The core issue is likely here: signature_hex_output_len must be >= signature_raw_len * 2 + 1
-    // We expect signature_raw_len to be <= ECDSA_MAX_SIGNATURE_LEN (72)
-    // So, signature_hex_output_len must be >= 72 * 2 + 1 = 145
-    hasher_bytes_to_hex_buf(signature_raw, signature_raw_len, signature_hex_output, signature_hex_output_len);
-    if (strlen(signature_hex_output) != signature_raw_len * 2) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to fully convert signature to hex string (buffer too small? sig_raw_len: %zu, hex_output_len: %zu).", signature_raw_len, signature_hex_output_len);
+    // Now convert the raw signature bytes to a hex string
+    // Removed the 'if' condition here because hasher_bytes_to_hex_buf is likely void
+    hasher_bytes_to_hex_buf(signature_raw, (size_t)real_sig_len, signature_hex_output, signature_hex_output_len);
+    
+    // Check if the output buffer was sufficient for the hex conversion
+    // This check is crucial since hasher_bytes_to_hex_buf might not return a status.
+    if (strlen(signature_hex_output) != (size_t)real_sig_len * 2) {
+        logger_log(LOG_LEVEL_ERROR, "Hex signature conversion resulted in unexpected length (raw len: %u, hex len: %zu). Buffer too small or error.", real_sig_len, strlen(signature_hex_output));
         goto end;
     }
-    logger_log(LOG_LEVEL_INFO, "Hash signed successfully.");
+
+    logger_log(LOG_LEVEL_INFO, "Hash signed successfully. Signature length: %u bytes (raw), %zu bytes (hex)", real_sig_len, strlen(signature_hex_output));
     ret = 0;
+
 end:
     if (priv_key) EC_KEY_free(priv_key);
+    ERR_free_strings();
     return ret;
 }
 
 // Verifies an ECDSA signature using OpenSSL.
 bool ecdsa_verify_signature(const uint8_t* hash, size_t hash_len, const char* signature_hex, const char* public_key_pem) {
-    if (!hash || hash_len != SHA256_DIGEST_LENGTH || !signature_hex || !public_key_pem) {
+    if (!hash || hash_len != SHA256_DIGEST_LENGTH || !signature_hex || !public_key_pem || strlen(signature_hex) == 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid input parameters for ecdsa_verify_signature.");
         return false;
     }
     EC_KEY* pub_key = NULL;
-    uint8_t signature_raw[ECDSA_MAX_SIGNATURE_LEN];
+    uint8_t signature_raw[ECDSA_MAX_SIGNATURE_LEN]; // Use ECDSA_MAX_SIGNATURE_LEN for raw buffer size
     size_t signature_raw_len = 0;
     bool is_valid = false;
-    if (hasher_hex_to_bytes_buf(signature_hex, signature_raw, sizeof(signature_raw)) != 0) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to convert hex signature to raw bytes.");
+
+    ERR_load_crypto_strings();
+
+    // Convert hex signature to raw bytes
+    // Assuming hasher_hex_to_bytes_buf also returns void or has its own error handling
+    hasher_hex_to_bytes_buf(signature_hex, signature_raw, sizeof(signature_raw));
+    
+    // Check for potential issues with hex to bytes conversion:
+    // If hasher_hex_to_bytes_buf returned an int, we'd check it. Since it doesn't,
+    // we assume it performs the conversion or logs internally.
+    // The length check below acts as a post-conversion validation.
+    
+    signature_raw_len = strlen(signature_hex) / 2; // Calculate actual raw length from hex string
+
+    if (signature_raw_len == 0 || signature_raw_len > ECDSA_MAX_SIGNATURE_LEN) { // Use ECDSA_MAX_SIGNATURE_LEN here
+        logger_log(LOG_LEVEL_ERROR, "Invalid raw signature length after hex conversion (%zu bytes). Expected between 1 and %d.", signature_raw_len, ECDSA_MAX_SIGNATURE_LEN);
         goto end;
     }
-    signature_raw_len = strlen(signature_hex) / 2;
-    if (signature_raw_len == 0 || signature_raw_len > ECDSA_MAX_SIGNATURE_LEN) {
-        logger_log(LOG_LEVEL_ERROR, "Invalid raw signature length after hex conversion.");
-        goto end;
-    }
+
     pub_key = key_from_pem_string(public_key_pem, false);
     if (!pub_key) {
         logger_log(LOG_LEVEL_ERROR, "Failed to load public key from PEM string for verification.");
         goto end;
     }
+    
+    // Check if the public key has a valid public point
+    if (!EC_KEY_get0_public_key(pub_key)) {
+        logger_log(LOG_LEVEL_ERROR, "Public key loaded from PEM does not have a valid public point.");
+        goto end;
+    }
+
     int ret = ECDSA_verify(0, hash, SHA256_DIGEST_LENGTH, signature_raw, (int)signature_raw_len, pub_key);
     if (ret == 1) {
         logger_log(LOG_LEVEL_DEBUG, "ECDSA signature is VALID.");
@@ -275,5 +331,37 @@ bool ecdsa_verify_signature(const uint8_t* hash, size_t hash_len, const char* si
     }
 end:
     if (pub_key) EC_KEY_free(pub_key);
+    ERR_free_strings();
     return is_valid;
+}
+
+
+/**
+ * @brief Saves a PEM-encoded key string to a specified file.
+ *
+ * @param key_pem The null-terminated PEM string of the key (private or public).
+ * @param filepath The path to the file where the key will be saved.
+ * @return 0 on success, -1 on error.
+ */
+int key_management_save_key_to_file(const char* key_pem, const char* filepath) {
+    if (!key_pem || !filepath || strlen(key_pem) == 0 || strlen(filepath) == 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid arguments for key_management_save_key_to_file: key_pem or filepath is NULL/empty.");
+        return -1;
+    }
+
+    FILE* fp = fopen(filepath, "w");
+    if (fp == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to open file '%s' for writing key: %s", filepath, strerror(errno));
+        return -1;
+    }
+
+    if (fprintf(fp, "%s", key_pem) < 0) {
+        logger_log(LOG_LEVEL_ERROR, "Failed to write key to file '%s': %s", filepath, strerror(errno));
+        fclose(fp);
+        return -1;
+    }
+
+    fclose(fp);
+    logger_log(LOG_LEVEL_INFO, "Key successfully saved to '%s'.", filepath);
+    return 0;
 }

@@ -26,4 +26,13 @@ int ecdsa_sign_hash(const uint8_t* hash, size_t hash_len, const char* private_ke
 // Verifies an ECDSA signature using OpenSSL.
 bool ecdsa_verify_signature(const uint8_t* hash, size_t hash_len, const char* signature_hex, const char* public_key_pem);
 
+/**
+ * @brief Saves a PEM-encoded key string to a specified file.
+ *
+ * @param key_pem The null-terminated PEM string of the key (private or public).
+ * @param filepath The path to the file where the key will be saved.
+ * @return 0 on success, -1 on error.
+ */
+int key_management_save_key_to_file(const char* key_pem, const char* filepath); // <--- ADD THIS LINE
+
 #endif // KEY_MANAGEMENT_H

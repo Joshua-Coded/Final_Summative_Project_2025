@@ -4,6 +4,7 @@
 #include "../utils/linked_list.h"
 #include "../config/config.h"
 #include "../crypto/hasher.h"
+#include "../utils/colors.h" // Add this line
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -41,27 +42,29 @@ bool mempool_add_transaction(Transaction* tx) {
         return false;
     }
 
+    // A full transaction validation (including signature) should happen here
+    // before adding to mempool. For now, assuming basic validity.
     if (transaction_is_valid(tx) != 0) {
         logger_log(LOG_LEVEL_WARN, "Attempted to add an invalid transaction to mempool. ID: %s", tx->transaction_id);
-        transaction_destroy(tx);
+        transaction_destroy(tx); // Destroy invalid transaction
         return false;
     }
 
     if (mempool_contains_transaction(tx->transaction_id)) {
         logger_log(LOG_LEVEL_WARN, "Duplicate transaction %s already in mempool. Not adding.", tx->transaction_id);
-        transaction_destroy(tx);
+        transaction_destroy(tx); // Destroy duplicate transaction
         return false;
     }
 
     if (linked_list_get_size(g_mempool) >= MAX_MEMPOOL_TRANSACTIONS) {
-        logger_log(LOG_LEVEL_WARN, "Mempool is full. Cannot add transaction %s.", tx->transaction_id);
-        transaction_destroy(tx);
+        logger_log(LOG_LEVEL_WARN, "Mempool is full. Cannot add transaction %s. Max size: %d", tx->transaction_id, MAX_MEMPOOL_TRANSACTIONS);
+        transaction_destroy(tx); // Destroy if mempool is full
         return false;
     }
 
     if (linked_list_add(g_mempool, tx) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to add transaction %s to mempool linked list.", tx->transaction_id);
-        transaction_destroy(tx);
+        transaction_destroy(tx); // Destroy if linked list add fails
         return false;
     }
 
@@ -71,6 +74,7 @@ bool mempool_add_transaction(Transaction* tx) {
 
 /**
  * @brief Retrieves transactions from the mempool for block creation.
+ * Transactions retrieved are REMOVED from the mempool.
  */
 size_t mempool_get_transactions_for_block(size_t count, Transaction** output_txs) {
     if (g_mempool == NULL || output_txs == NULL) {
@@ -120,6 +124,8 @@ bool mempool_remove_transaction(const char transaction_id[TRANSACTION_ID_LEN + 1
                 g_mempool->tail = prev;
             }
 
+            // The transaction object itself needs to be destroyed as it was removed
+            // from the mempool and its memory is no longer managed by the list.
             transaction_destroy(tx);
             free(current);
             g_mempool->size--;
@@ -159,6 +165,7 @@ bool mempool_contains_transaction(const char transaction_id[TRANSACTION_ID_LEN +
 
 /**
  * @brief Clears all transactions from the mempool.
+ * Note: This function frees the memory associated with each transaction.
  */
 void mempool_clear() {
     if (g_mempool == NULL) {
@@ -170,16 +177,14 @@ void mempool_clear() {
     while (current != NULL) {
         ListNode* next = current->next;
         if (current->data != NULL) {
-            transaction_destroy((Transaction*)current->data);
+            transaction_destroy((Transaction*)current->data); // Free the transaction object itself
         }
-        free(current);
+        free(current); // Free the list node
         current = next;
     }
     g_mempool->head = NULL;
     g_mempool->tail = NULL;
     g_mempool->size = 0;
-    // Do NOT destroy g_mempool here, as mempool_shutdown will handle that.
-    // mempool_clear is intended to just empty the list, not destroy the list structure itself.
     logger_log(LOG_LEVEL_DEBUG, "Mempool contents cleared.");
 }
 
@@ -199,31 +204,38 @@ size_t mempool_get_size() {
 void mempool_print() {
     if (g_mempool == NULL) {
         logger_log(LOG_LEVEL_INFO, "Mempool is not initialized.");
+        printf("Mempool is not initialized.\n");
         return;
     }
     if (linked_list_get_size(g_mempool) == 0) {
         logger_log(LOG_LEVEL_INFO, "Mempool is empty.");
+        printf("Mempool is empty.\n");
         return;
     }
 
+    printf(ANSI_COLOR_CYAN "--- Mempool Contents (%zu transactions) ---\n" ANSI_COLOR_RESET, linked_list_get_size(g_mempool));
     logger_log(LOG_LEVEL_INFO, "--- Mempool Contents (%zu transactions) ---", linked_list_get_size(g_mempool));
     ListNode* current = g_mempool->head;
     size_t i = 0;
     while (current != NULL) {
         Transaction* tx = (Transaction*)current->data;
         if (tx != NULL) {
-            logger_log(LOG_LEVEL_INFO, "  Tx %zu: ID: %s", i++, tx->transaction_id);
+            printf(ANSI_COLOR_YELLOW "  Tx %zu: ID: %.10s..., Type: %d\n" ANSI_COLOR_RESET, i++, tx->transaction_id, tx->type);
+            logger_log(LOG_LEVEL_INFO, "  Tx %zu: ID: %s, Type: %d", i, tx->transaction_id, tx->type);
         } else {
-            logger_log(LOG_LEVEL_WARN, "  Tx %zu: (NULL transaction pointer in mempool)", i++);
+            printf(ANSI_COLOR_RED "  Tx %zu: (NULL transaction pointer in mempool)\n" ANSI_COLOR_RESET, i++);
+            logger_log(LOG_LEVEL_WARN, "  Tx %zu: (NULL transaction pointer in mempool)", i);
         }
         current = current->next;
     }
+    printf(ANSI_COLOR_CYAN "------------------------------------------\n" ANSI_COLOR_RESET);
     logger_log(LOG_LEVEL_INFO, "------------------------------------------");
 }
 
 /**
  * @brief Retrieves a specific transaction by index from the mempool.
  * This is inefficient for large mempools, but useful for CLI.
+ * Returns a const pointer as the transaction should not be modified via this function.
  */
 const Transaction* mempool_get_transaction_by_index(size_t index) {
     if (g_mempool == NULL || index >= linked_list_get_size(g_mempool)) {
@@ -237,6 +249,24 @@ const Transaction* mempool_get_transaction_by_index(size_t index) {
     }
     return (const Transaction*)current->data;
 }
+
+// --- NEW FUNCTION IMPLEMENTATION ---
+/**
+ * @brief Retrieves a pointer to the first transaction in the mempool.
+ * The transaction is NOT removed from the mempool. This is useful for
+ * inspecting or broadcasting without immediately consuming.
+ *
+ * @return A pointer to the first Transaction object in the mempool, or NULL if mempool is empty.
+ */
+Transaction* mempool_get_first_transaction() {
+    if (!g_mempool || g_mempool->head == NULL) {
+        logger_log(LOG_LEVEL_DEBUG, "mempool_get_first_transaction: Mempool is empty.");
+        return NULL;
+    }
+    // Assuming the linked list stores Transaction pointers directly
+    return (Transaction*)g_mempool->head->data;
+}
+
 
 /**
  * @brief Shuts down the mempool, freeing any allocated resources.

@@ -310,3 +310,129 @@
 [2025-06-19 10:45:13] [INFO] Key pair generated and PEM strings copied.
 [2025-06-19 10:45:13] [INFO] Public key hash derived successfully.
 [2025-06-19 10:45:13] [INFO] New ECDSA key pair generated and set for CLI session. Hash: 02748957b9789fd6513fbcb3d7a401bed2dd3cac3014f5f4853f3edaba6c5b58
+[2025-06-19 10:59:07] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 10:59:07] [INFO] Network module initialized.
+[2025-06-19 10:59:07] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 10:59:07] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:59:07] [INFO] Public key hash derived successfully.
+[2025-06-19 10:59:07] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 10:59:13] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 10:59:13] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 10:59:13] [INFO] Block #0 mined successfully! Nonce: 214, Hash: 000e3a4413c54a34272b75b70d32a9823a4a482a49d2d93ff45fe37145d38679
+[2025-06-19 10:59:13] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 10:59:13] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 10:59:13] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 10:59:34] [INFO] Hash signed successfully.
+[2025-06-19 10:59:34] [INFO] Transaction c3b7b77700287fa8cc0499d58a4f9e99f1be12a6de47ae9544939662b4ea108e signed.
+[2025-06-19 10:59:34] [INFO] Sample transaction created and signed with ID: c3b7b77700287fa8cc0499d58a4f9e99f1be12a6de47ae9544939662b4ea108e
+[2025-06-19 10:59:34] [ERROR] Failed to read key from PEM string. Check format/type.
+[2025-06-19 10:59:34] [ERROR] key_from_pem_string OpenSSL Error: error:0480006C:PEM routines::no start line
+[2025-06-19 10:59:34] [ERROR] Failed to load public key from PEM string for verification.
+[2025-06-19 10:59:34] [WARN] Signature verification failed for transaction c3b7b77700287fa8cc0499d58a4f9e99f1be12a6de47ae9544939662b4ea108e.
+[2025-06-19 10:59:34] [ERROR] Transaction c3b7b77700287fa8cc0499d58a4f9e99f1be12a6de47ae9544939662b4ea108e: Signature verification failed.
+[2025-06-19 10:59:34] [WARN] Attempted to add an invalid transaction to mempool. ID: c3b7b77700287fa8cc0499d58a4f9e99f1be12a6de47ae9544939662b4ea108e
+[2025-06-19 10:59:34] [ERROR] Failed to add transaction to mempool (mempool full or duplicate).
+[2025-06-19 11:08:15] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 11:08:15] [INFO] Network module initialized.
+[2025-06-19 11:08:15] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 11:08:15] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 11:08:15] [INFO] Public key hash derived successfully.
+[2025-06-19 11:08:15] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 11:09:04] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 11:09:04] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 11:09:04] [INFO] Block #0 mined successfully! Nonce: 409, Hash: 00a6c639af15d6b1006ce5fcebe18d4bec7db68b8d99118fff016c69c5610fe1
+[2025-06-19 11:09:04] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 11:09:04] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 11:09:04] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 11:10:05] [INFO] Hash signed successfully.
+[2025-06-19 11:10:05] [INFO] Transaction 7f70d6dd579855145c0ef829727eaee28a889d962c2eb793eccd76dc0e9b2eac signed.
+[2025-06-19 11:10:05] [INFO] Sample transaction created and signed with ID: 7f70d6dd579855145c0ef829727eaee28a889d962c2eb793eccd76dc0e9b2eac
+[2025-06-19 11:10:05] [ERROR] Invalid transaction for signature verification: missing ID, signature, or sender public key PEM.
+[2025-06-19 11:10:05] [ERROR] Transaction 7f70d6dd579855145c0ef829727eaee28a889d962c2eb793eccd76dc0e9b2eac: Signature verification failed.
+[2025-06-19 11:10:05] [WARN] Attempted to add an invalid transaction to mempool. ID: 7f70d6dd579855145c0ef829727eaee28a889d962c2eb793eccd76dc0e9b2eac
+[2025-06-19 11:10:05] [ERROR] Failed to add transaction to mempool (mempool full or duplicate).
+[2025-06-19 12:20:39] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 12:20:39] [INFO] Network module initialized.
+[2025-06-19 12:20:39] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 12:20:39] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 12:20:39] [INFO] Public key hash derived successfully.
+[2025-06-19 12:20:39] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 12:20:58] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 12:20:58] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 12:20:58] [INFO] Block #0 mined successfully! Nonce: 224, Hash: 00078434cf33c9955e25b5dd818e205149f3dacd81adf06744e3dc0a955e45be
+[2025-06-19 12:20:58] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 12:20:58] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 12:20:58] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 12:22:03] [INFO] Hash signed successfully. Signature length: 71 bytes (raw), 142 bytes (hex)
+[2025-06-19 12:22:03] [INFO] Transaction 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a signed.
+[2025-06-19 12:22:03] [INFO] Sample transaction created and signed with ID: 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a
+[2025-06-19 12:22:03] [INFO] Transaction 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a added to mempool. Current size: 1
+[2025-06-19 12:22:03] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 12:23:03] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 12:23:03] [INFO]   Tx 1: ID: 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a, Type: 0
+[2025-06-19 12:23:03] [INFO] ------------------------------------------
+[2025-06-19 12:24:17] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-19 12:24:17] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 12:24:17] [INFO] Block #1 mined successfully! Nonce: 74, Hash: 00bca961212dc57bb8065f6295f23574367fddc0f340f460d039266eb436ad22
+[2025-06-19 12:24:17] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 12:24:17] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-19 12:24:17] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 12:24:17] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 12:24:17] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 12:24:17] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 12:24:48] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 12:24:48] [INFO]   Tx 1: ID: 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a, Type: 0
+[2025-06-19 12:24:48] [INFO] ------------------------------------------
+[2025-06-19 12:30:32] [WARN] Function blockchain_get_transaction not yet implemented or transaction not found.
+[2025-06-19 12:30:32] [INFO] Transaction 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a not found.
+[2025-06-19 12:31:01] [INFO] network_broadcast_data: No peers to broadcast to.
+[2025-06-19 12:31:01] [INFO] Transaction 1c1ebd4dcc8b79aca40ae82bb2c6b757e711774a69a9d03e5fb5a995dfadbf6a broadcast successfully.
+[2025-06-19 12:38:55] [INFO] Exiting CLI.
+[2025-06-19 12:38:55] [INFO] Shutting down network module...
+[2025-06-19 12:38:55] [INFO] Listener thread was not running.
+[2025-06-19 12:38:55] [INFO] All peer connections closed.
+[2025-06-19 12:38:55] [INFO] Shutting down mempool...
+[2025-06-19 12:38:55] [INFO] Mempool shutdown complete.
+[2025-06-19 12:50:07] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 12:50:07] [INFO] Network module initialized.
+[2025-06-19 12:50:07] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 12:50:07] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 12:50:07] [INFO] Public key hash derived successfully.
+[2025-06-19 12:50:07] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 12:51:02] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-19 12:51:02] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 2).
+[2025-06-19 12:51:02] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 2).
+[2025-06-19 12:52:48] [INFO] Hash signed successfully. Signature length: 70 bytes (raw), 140 bytes (hex)
+[2025-06-19 12:52:48] [INFO] Transaction 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255 signed.
+[2025-06-19 12:52:48] [INFO] Sample transaction created and signed with ID: 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255
+[2025-06-19 12:52:48] [INFO] Transaction 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255 added to mempool. Current size: 1
+[2025-06-19 12:52:48] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 12:53:18] [INFO] Attempting to mine new block #2 with 0 transactions...
+[2025-06-19 12:53:18] [INFO] Mining Block #2 with difficulty 0 (target prefix: '').
+[2025-06-19 12:53:18] [INFO] Block #2 mined successfully! Nonce: 0, Hash: f62db3920ef82b9d8d270cedd15ca72b663fd9c69e865acad5c5d8a2fa9c00cb
+[2025-06-19 12:53:18] [INFO] Block #2 added to the blockchain. Current length: 3.
+[2025-06-19 12:53:18] [INFO] Pending transactions cleared after mining block #2.
+[2025-06-19 12:53:18] [INFO] New block mined successfully! Current blockchain height: 3
+[2025-06-19 12:53:18] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 3)...
+[2025-06-19 12:53:18] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 12:53:18] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 12:54:17] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 12:54:17] [INFO]   Tx 1: ID: 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255, Type: 0
+[2025-06-19 12:54:17] [INFO] ------------------------------------------
+[2025-06-19 12:55:08] [INFO] Attempting to mine new block #3 with 0 transactions...
+[2025-06-19 12:55:08] [INFO] Mining Block #3 with difficulty 0 (target prefix: '').
+[2025-06-19 12:55:08] [INFO] Block #3 mined successfully! Nonce: 0, Hash: f369c76c2151dce6cd117cd95ae2d1579a3a48db3b4fa5ca1b694bc9a323a162
+[2025-06-19 12:55:08] [INFO] Block #3 added to the blockchain. Current length: 4.
+[2025-06-19 12:55:08] [INFO] Pending transactions cleared after mining block #3.
+[2025-06-19 12:55:08] [INFO] New block mined successfully! Current blockchain height: 4
+[2025-06-19 12:55:08] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 4)...
+[2025-06-19 12:55:08] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 12:55:08] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 12:57:27] [INFO] Transaction with ID 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255 not found.
+[2025-06-19 12:57:27] [INFO] Transaction 95e1f057800bb2f30f3652409f061f79ec25d07ae6483190d221e4c92a79d255 not found.
+[2025-06-19 12:57:32] [INFO] Exiting CLI.
+[2025-06-19 12:57:32] [INFO] Shutting down network module...
+[2025-06-19 12:57:32] [INFO] Listener thread was not running.
+[2025-06-19 12:57:32] [INFO] All peer connections closed.
+[2025-06-19 12:57:32] [INFO] Shutting down mempool...
+[2025-06-19 12:57:32] [INFO] Mempool shutdown complete.

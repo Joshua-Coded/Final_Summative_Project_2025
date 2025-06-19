@@ -1,7 +1,7 @@
 // src/core/blockchain.c
 #include "core/blockchain.h"
 #include "core/block.h"
-#include "core/transaction.h"
+#include "core/transaction.h" // This now correctly provides TRANSACTION_ID_LEN
 #include "utils/logger.h"
 #include "utils/colors.h"
 #include "crypto/hasher.h"
@@ -16,9 +16,6 @@
 
 static const uint8_t GENESIS_PREV_HASH_BYTES[BLOCK_HASH_SIZE] = {0};
 
-/**
- * @brief Initializes a new blockchain.
- */
 Blockchain* blockchain_create() {
     Blockchain* bc = (Blockchain*)malloc(sizeof(Blockchain));
     if (bc == NULL) {
@@ -79,9 +76,6 @@ Blockchain* blockchain_create() {
     return bc;
 }
 
-/**
- * @brief Adds a new block to the blockchain.
- */
 int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
     if (blockchain == NULL || new_block == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Error: Blockchain or new_block is NULL in blockchain_add_block.");
@@ -114,9 +108,6 @@ int blockchain_add_block(Blockchain* blockchain, Block* new_block) {
     return 0;
 }
 
-/**
- * @brief Adds a transaction to the list of pending transactions.
- */
 int blockchain_add_transaction_to_pending(Blockchain* blockchain, Transaction* tx) {
     if (blockchain == NULL || tx == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Error: Blockchain or transaction is NULL when adding to pending list.");
@@ -147,9 +138,6 @@ int blockchain_add_transaction_to_pending(Blockchain* blockchain, Transaction* t
     return 0;
 }
 
-/**
- * @brief Mines a new block with the current pending transactions.
- */
 int blockchain_mine_new_block(Blockchain* blockchain) {
     if (blockchain == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Error: Blockchain is NULL when mining a new block.");
@@ -176,7 +164,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
                 logger_log(LOG_LEVEL_WARN, "Failed to add pending transaction %zu to new block. Continuing with others.", i);
                 print_yellow("Warning: Failed to add pending transaction %zu to new block. Continuing.\n", i);
             } else {
-                blockchain->pending_transactions[i] = NULL;
+                blockchain->pending_transactions[i] = NULL; // Mark as moved to the block
             }
         }
     }
@@ -184,7 +172,7 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     logger_log(LOG_LEVEL_INFO, "Attempting to mine new block #%u with %zu transactions...",
                new_block->index, new_block->num_transactions);
     print_cyan("Attempting to mine new block #%u with %zu transactions...\n",
-           new_block->index, new_block->num_transactions);
+               new_block->index, new_block->num_transactions);
 
     if (block_mine(new_block, blockchain->difficulty) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to mine new block.");
@@ -200,10 +188,14 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
         return -1;
     }
 
+    // Free transactions that were added to the block and clear pending list
+    // Note: It's important to ensure block_add_transaction creates a copy,
+    // or else transactions should only be destroyed here if they are truly "consumed".
+    // If block_add_transaction just takes a pointer, we shouldn't destroy here.
+    // Assuming block_add_transaction copies the transaction, this is correct.
     for (size_t i = 0; i < blockchain->num_pending_transactions; ++i) {
         if (blockchain->pending_transactions[i] != NULL) {
             transaction_destroy(blockchain->pending_transactions[i]);
-            blockchain->pending_transactions[i] = NULL;
         }
     }
     blockchain->num_pending_transactions = 0;
@@ -213,9 +205,6 @@ int blockchain_mine_new_block(Blockchain* blockchain) {
     return 0;
 }
 
-/**
- * @brief Retrieves a block from the blockchain by its index.
- */
 Block* blockchain_get_block_by_index(const Blockchain* blockchain, size_t index) {
     if (blockchain == NULL || index >= blockchain->length) {
         logger_log(LOG_LEVEL_ERROR, "Error: Invalid blockchain or index %zu (length %zu) in blockchain_get_block_by_index.",
@@ -225,73 +214,52 @@ Block* blockchain_get_block_by_index(const Blockchain* blockchain, size_t index)
     return blockchain->chain[index];
 }
 
-/**
- * @brief Retrieves a block from the blockchain by its hash.
- * You MUST IMPLEMENT THE LOGIC FOR THIS FUNCTION.
- */
 Block* blockchain_get_block_by_hash(const Blockchain* blockchain, const char* hash_hex) {
     if (blockchain == NULL || hash_hex == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Error: Invalid blockchain or hash_hex is NULL in blockchain_get_block_by_hash.");
         return NULL;
     }
 
-    // TODO: Implement the logic to iterate through the blockchain and find the block
-    // whose hash matches hash_hex.
-    // You will likely need to convert hash_hex back to bytes for comparison.
-    // Use hasher_hex_to_bytes_buf from crypto/hasher.h
-    // Example:
-    // uint8_t target_hash_bytes[BLOCK_HASH_SIZE];
-    // if (hasher_hex_to_bytes_buf(hash_hex, target_hash_bytes, BLOCK_HASH_SIZE) != 0) {
-    //     logger_log(LOG_LEVEL_ERROR, "Invalid hash hex string provided for lookup.");
-    //     return NULL;
-    // }
-    //
-    // for (size_t i = 0; i < blockchain->length; ++i) {
-    //     if (memcmp(blockchain->chain[i]->hash, target_hash_bytes, BLOCK_HASH_SIZE) == 0) {
-    //         return blockchain->chain[i];
-    //     }
-    // }
-
-    logger_log(LOG_LEVEL_WARN, "Function blockchain_get_block_by_hash not yet implemented or block not found.");
-    return NULL; // Placeholder
-}
-
-/**
- * @brief Finds a transaction by its ID within the entire blockchain.
- * You MUST IMPLEMENT THE LOGIC FOR THIS FUNCTION.
- */
-const Transaction* blockchain_get_transaction(const Blockchain* blockchain, const char* transaction_id) {
-    if (blockchain == NULL || transaction_id == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Error: Invalid blockchain or transaction_id is NULL in blockchain_get_transaction.");
+    uint8_t target_hash_bytes[BLOCK_HASH_SIZE];
+    if (hasher_hex_to_bytes_buf(hash_hex, target_hash_bytes, BLOCK_HASH_SIZE) != 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid hash hex string provided for lookup in blockchain_get_block_by_hash.");
         return NULL;
     }
 
-    // TODO: Implement the logic to iterate through all blocks in the blockchain
-    // and then through all transactions within each block to find a matching transaction_id.
-    // You will need to compare transaction_id (hex string) with the actual transaction hash.
-    // Remember to use hasher_hex_to_bytes_buf for comparison if transaction IDs are stored as bytes.
-    // And if transaction_get_id returns a hex string, you can compare directly.
-    // For example:
-    // for (size_t i = 0; i < blockchain->length; ++i) {
-    //     Block* current_block = blockchain->chain[i];
-    //     for (size_t j = 0; j < current_block->num_transactions; ++j) {
-    //         const Transaction* tx = current_block->transactions[j];
-    //         char tx_id_hex[TRANSACTION_ID_HEX_SIZE + 1]; // +1 for null terminator
-    //         hasher_bytes_to_hex(tx->id, TRANSACTION_ID_SIZE, tx_id_hex);
-    //         if (strcmp(tx_id_hex, transaction_id) == 0) {
-    //             return tx;
-    //         }
-    //     }
-    // }
+    for (size_t i = 0; i < blockchain->length; ++i) {
+        // Ensure the stored block hash is also in bytes for memcmp
+        if (memcmp(blockchain->chain[i]->hash, target_hash_bytes, BLOCK_HASH_SIZE) == 0) {
+            return blockchain->chain[i];
+        }
+    }
 
-    logger_log(LOG_LEVEL_WARN, "Function blockchain_get_transaction not yet implemented or transaction not found.");
-    return NULL; // Placeholder
+    logger_log(LOG_LEVEL_INFO, "Block with hash %s not found.", hash_hex);
+    return NULL;
 }
 
+const Transaction* blockchain_get_transaction(const Blockchain* blockchain, const char* transaction_id_hex) {
+    if (blockchain == NULL || transaction_id_hex == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Error: Invalid blockchain or transaction_id_hex is NULL in blockchain_get_transaction.");
+        return NULL;
+    }
 
-/**
- * @brief Validates the entire blockchain.
- */
+    // The transaction ID in the struct is already a hex string (char array)
+    // We can directly compare it with the provided transaction_id_hex
+    for (size_t i = 0; i < blockchain->length; ++i) {
+        Block* current_block = blockchain->chain[i];
+        for (size_t j = 0; j < current_block->num_transactions; ++j) {
+            const Transaction* tx = current_block->transactions[j];
+            // Compare the transaction_id string directly
+            if (strcmp(tx->transaction_id, transaction_id_hex) == 0) {
+                return tx;
+            }
+        }
+    }
+
+    logger_log(LOG_LEVEL_INFO, "Transaction with ID %s not found.", transaction_id_hex);
+    return NULL;
+}
+
 int blockchain_is_valid(const Blockchain* blockchain) {
     if (blockchain == NULL || blockchain->length == 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid or empty blockchain provided for validation.");
@@ -303,18 +271,17 @@ int blockchain_is_valid(const Blockchain* blockchain) {
 
     print_cyan("Starting blockchain validation...\n");
 
+    // Validate Genesis Block
     if (memcmp(blockchain->chain[0]->prev_hash, GENESIS_PREV_HASH_BYTES, BLOCK_HASH_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Invalid genesis block previous hash. Expected all zeros, Got %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->prev_hash, BLOCK_HASH_SIZE));
-        print_red("Validation Failed: ");
-        printf("Genesis block has incorrect previous hash.\n");
+        print_red("Validation Failed: Genesis block has incorrect previous hash.\n");
         return -1;
     }
 
     if (block_calculate_hash(blockchain->chain[0], calculated_hash) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for genesis block validation.");
-        print_red("Validation Failed: ");
-        printf("Failed to calculate hash for Genesis Block.\n");
+        print_red("Validation Failed: Failed to calculate hash for Genesis Block.\n");
         return -1;
     }
 
@@ -322,30 +289,34 @@ int blockchain_is_valid(const Blockchain* blockchain) {
         logger_log(LOG_LEVEL_ERROR, "Genesis block hash mismatch. Stored: %s, Recalculated: %s.",
                    hasher_bytes_to_hex(blockchain->chain[0]->hash, BLOCK_HASH_SIZE),
                    hasher_bytes_to_hex(calculated_hash, BLOCK_HASH_SIZE));
-        print_red("Validation Failed: ");
-        printf("Genesis block hash mismatch.\n");
+        print_red("Validation Failed: Genesis block hash mismatch.\n");
         return -1;
     }
 
     if (block_is_valid(blockchain->chain[0], blockchain->difficulty) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Genesis block is invalid (failed block_is_valid check).");
-        print_red("Validation Failed: ");
-        printf("Genesis block failed internal validation (PoW or transactions).\n");
+        print_red("Validation Failed: Genesis block failed internal validation (PoW or transactions).\n");
         return -1;
     }
     print_green("Genesis Block (#0) validated successfully.\n");
 
-
+    // Validate subsequent blocks
     for (size_t i = 1; i < blockchain->length; i++) {
         Block* current_block = blockchain->chain[i];
         Block* prev_block = blockchain->chain[i-1];
 
         print_cyan("  Validating Block #%u...\n", current_block->index);
 
+        if (current_block->index != prev_block->index + 1) {
+            logger_log(LOG_LEVEL_ERROR, "Block #%u has invalid index. Expected %u, Got %u.",
+                       current_block->index, prev_block->index + 1, current_block->index);
+            print_red("Validation Failed: Block #%u has invalid index.\n", current_block->index);
+            return -1;
+        }
+
         if (block_calculate_hash(current_block, calculated_hash) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to calculate hash for block #%u validation.", current_block->index);
-            print_red("Validation Failed: ");
-            printf("Failed to calculate hash for Block #%u.\n", current_block->index);
+            print_red("Validation Failed: Failed to calculate hash for Block #%u.\n", current_block->index);
             return -1;
         }
 
@@ -354,8 +325,7 @@ int blockchain_is_valid(const Blockchain* blockchain) {
                        current_block->index,
                        hasher_bytes_to_hex(current_block->hash, BLOCK_HASH_SIZE),
                        hasher_bytes_to_hex(calculated_hash, BLOCK_HASH_SIZE));
-            print_red("Validation Failed: ");
-            printf("Block #%u hash mismatch.\n", current_block->index);
+            print_red("Validation Failed: Block #%u hash mismatch.\n", current_block->index);
             return -1;
         }
 
@@ -365,16 +335,14 @@ int blockchain_is_valid(const Blockchain* blockchain) {
                        hasher_bytes_to_hex(prev_block->hash, BLOCK_HASH_SIZE),
                        prev_block->index,
                        hasher_bytes_to_hex(current_block->prev_hash, BLOCK_HASH_SIZE));
-            print_red("Validation Failed: ");
-            printf("Block #%u previous hash does not match Block #%u's hash.\n",
-                   current_block->index, prev_block->index);
+            print_red("Validation Failed: Block #%u previous hash does not match Block #%u's hash.\n",
+                      current_block->index, prev_block->index);
             return -1;
         }
 
         if (block_is_valid(current_block, blockchain->difficulty) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Block #%u is invalid (failed block_is_valid check).", current_block->index);
-            print_red("Validation Failed: ");
-            printf("Block #%u is invalid (failed internal validation).\n", current_block->index);
+            print_red("Validation Failed: Block #%u is invalid (failed internal validation).\n", current_block->index);
             return -1;
         }
         print_green("  Block #%u validated successfully.\n", current_block->index);
@@ -384,9 +352,6 @@ int blockchain_is_valid(const Blockchain* blockchain) {
     return 0;
 }
 
-/**
- * @brief Frees all memory allocated for the blockchain.
- */
 void blockchain_destroy(Blockchain* blockchain) {
     if (blockchain == NULL) {
         return;

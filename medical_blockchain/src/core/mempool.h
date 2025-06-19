@@ -50,6 +50,15 @@ void mempool_print();
 const Transaction* mempool_get_transaction_by_index(size_t index);
 
 /**
+ * @brief Retrieves a pointer to the first transaction in the mempool.
+ * The transaction is NOT removed from the mempool. This is useful for
+ * inspecting or broadcasting without immediately consuming.
+ *
+ * @return A pointer to the first Transaction object in the mempool, or NULL if mempool is empty.
+ */
+Transaction* mempool_get_first_transaction(); // <--- ADD THIS LINE
+
+/**
  * @brief Shuts down the mempool, freeing allocated resources.
  */
 void mempool_shutdown();

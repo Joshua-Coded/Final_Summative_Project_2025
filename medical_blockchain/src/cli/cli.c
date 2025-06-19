@@ -3,7 +3,7 @@
 #include "utils/logger.h"
 #include "utils/colors.h"
 #include "core/blockchain.h"
-#include "core/block.h"
+#include "core/block.h" // FIXED: Added .h
 #include "core/transaction.h"
 #include "core/mempool.h"
 #include "security/encryption.h"
@@ -380,14 +380,14 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
     Transaction* tx = transaction_create(
         TX_NEW_RECORD,
         sender_public_key_hash,
-        ""
+        g_cli_public_key_pem
     );
 
     if (tx) {
         if (transaction_set_new_record_data(tx,
-                                            encrypted_data_buffer,
-                                            (size_t)encrypted_data_len,
-                                            iv, tag, original_data_hash_hex) != 0) {
+                                             encrypted_data_buffer,
+                                             (size_t)encrypted_data_len,
+                                             iv, tag, original_data_hash_hex) != 0) {
             logger_log(LOG_LEVEL_ERROR, "Failed to set new record data for transaction.");
             printf(ANSI_COLOR_RED "Failed to set new record data for transaction.\n" ANSI_COLOR_RESET);
             transaction_destroy(tx);
@@ -626,206 +626,185 @@ static void handle_start_listener_interactive() {
     printf(ANSI_COLOR_CYAN "Attempting to start listener on port %d...\n" ANSI_COLOR_RESET, port);
     int peer_fd = network_start_listener(port);
     if (peer_fd != -1) {
-        printf(ANSI_COLOR_GREEN "Network listener started successfully in the background on port %d!\n" ANSI_COLOR_RESET, port);
-        printf("You can now continue using the CLI or connect from another node.\n");
-        logger_log(LOG_LEVEL_INFO, "Network listener started on port %d.", port);
+        printf(ANSI_COLOR_GREEN "Network listener started successfully on port %d! (Peer FD: %d)\n" ANSI_COLOR_RESET, port, peer_fd);
+        logger_log(LOG_LEVEL_INFO, "Network listener started on port %d, Peer FD: %d", port, peer_fd);
     } else {
-        printf(ANSI_COLOR_RED "Failed to start network listener.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_ERROR, "Failed to start network listener on port %d.", port);
+        printf(ANSI_COLOR_RED "Failed to start network listener. %s\n" ANSI_COLOR_RESET, strerror(errno));
+        logger_log(LOG_LEVEL_ERROR, "Failed to start network listener on port %d: %s", port, strerror(errno));
     }
 }
 
 static void handle_connect_peer_interactive() {
-    char *ip_address = strtok(NULL, " ");
+    char *ip_str = strtok(NULL, " ");
     char *port_str = strtok(NULL, " ");
+    int port;
 
-    if (ip_address == NULL || port_str == NULL) {
-        printf(ANSI_COLOR_RED "Usage: connect-peer <ip_address> <port>\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_WARN, "Missing arguments for connect-peer command.");
+    if (ip_str == NULL || port_str == NULL) {
+        printf(ANSI_COLOR_RED "Usage: connect-peer <ip> <port>\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Missing arguments for connect-peer command.");
         return;
     }
 
-    int port = atoi(port_str);
+    port = atoi(port_str);
     if (port <= 0 || port > 65535) {
         printf(ANSI_COLOR_RED "Invalid port number. Please use a number between 1 and 65535.\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_ERROR, "Invalid port number entered for connect-peer: %s", port_str);
         return;
     }
 
-    printf(ANSI_COLOR_CYAN "Attempting to connect to peer %s:%d...\n" ANSI_COLOR_RESET, ip_address, port);
-    int peer_fd = network_connect_to_peer(ip_address, port);
+    printf(ANSI_COLOR_CYAN "Attempting to connect to peer %s:%d...\n" ANSI_COLOR_RESET, ip_str, port);
+    int peer_fd = network_connect_to_peer(ip_str, port); // Corrected function name
     if (peer_fd != -1) {
-        printf(ANSI_COLOR_GREEN "Connection initiated to %s:%d (FD: %d).\n" ANSI_COLOR_RESET, ip_address, port, peer_fd);
-        logger_log(LOG_LEVEL_INFO, "Connection initiated to peer %s:%d (FD: %d).", ip_address, port, peer_fd);
+        printf(ANSI_COLOR_GREEN "Successfully connected to peer %s:%d! (Peer FD: %d)\n" ANSI_COLOR_RESET, ip_str, port, peer_fd);
+        logger_log(LOG_LEVEL_INFO, "Connected to peer %s:%d, Peer FD: %d", ip_str, port, peer_fd);
     } else {
-        printf(ANSI_COLOR_RED "Failed to connect to %s:%d.\n" ANSI_COLOR_RESET, ip_address, port);
-        logger_log(LOG_LEVEL_ERROR, "Failed to connect to peer %s:%d.", ip_address, port);
+        printf(ANSI_COLOR_RED "Failed to connect to peer %s:%d. %s\n" ANSI_COLOR_RESET, ip_str, port, strerror(errno));
+        logger_log(LOG_LEVEL_ERROR, "Failed to connect to peer %s:%d: %s", ip_str, port, strerror(errno));
     }
 }
 
 static void handle_send_test_message_interactive() {
-    char *message_content = strtok(NULL, "");
+    char *message = strtok(NULL, ""); // Read the rest of the line as the message
 
-    if (message_content == NULL || strlen(message_content) == 0) {
-        printf(ANSI_COLOR_RED "Usage: send-test-message <your_message_here>\n" ANSI_COLOR_RESET);
+    if (message == NULL || strlen(message) == 0) {
+        printf(ANSI_COLOR_RED "Usage: send-test-message <message>\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Missing message for send-test-message command.");
         return;
     }
 
-    while (*message_content == ' ') {
-        message_content++;
+    // Remove leading space if strtok left one
+    while (*message == ' ') {
+        message++;
     }
 
-    logger_log(LOG_LEVEL_INFO, "Sending test message to all connected peers: \"%s\"", message_content);
-    network_broadcast_data(MSG_TYPE_TEST_MESSAGE, (const uint8_t*)message_content, strlen(message_content) + 1);
-    printf(ANSI_COLOR_GREEN "Test message broadcast to all connected peers.\n" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_CYAN "Sending test message to connected peers: \"%s\"\n" ANSI_COLOR_RESET, message);
+    // CORRECTED: Use MSG_TYPE_TEST_MESSAGE and network_broadcast_data
+    if (network_broadcast_data(MSG_TYPE_TEST_MESSAGE, (const uint8_t*)message, strlen(message) + 1) == 0) {
+        printf(ANSI_COLOR_GREEN "Test message sent successfully to all connected peers.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_INFO, "Test message sent: \"%s\"", message);
+    } else {
+        printf(ANSI_COLOR_RED "Failed to send test message.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Failed to send test message.");
+    }
 }
 
 static void handle_generate_keys_interactive() {
-    printf(ANSI_COLOR_CYAN "Generating a new ECDSA key pair...\n" ANSI_COLOR_RESET);
+    char output_private_path[256] = {0};
+    char output_public_path[256] = {0};
+    char name[128] = {0};
 
-    // Temp buffers to hold the PEM strings from key_management_generate_key_pair
-    char generated_priv_pem[4096] = {0};
-    char generated_pub_pem[4096] = {0};
-    // Removed: char public_key_hash_temp[SHA256_HEX_LEN + 1] = {0}; // This variable is unused
-
-    char private_output_path[256] = {0};
-    char public_output_path[256] = {0};
-    char name_for_keys[256] = {0}; // For display purposes
-    bool save_to_files = false;
-
-    // Parse additional arguments for --output-private, --output-public, --name
-    char *arg = strtok(NULL, " ");
-    while (arg != NULL) {
+    // Parse optional arguments
+    char *arg;
+    while ((arg = strtok(NULL, " ")) != NULL) {
+        to_lowercase(arg); // Convert arg to lowercase for comparison
         if (strcmp(arg, "--output-private") == 0) {
-            arg = strtok(NULL, " "); // Get the next token as the path
-            if (arg) {
-                strncpy(private_output_path, arg, sizeof(private_output_path) - 1);
-                private_output_path[sizeof(private_output_path) - 1] = '\0'; // Ensure null-termination
-                save_to_files = true;
-            } else {
-                printf(ANSI_COLOR_RED "Error: --output-private requires a file path.\n" ANSI_COLOR_RESET);
-                logger_log(LOG_LEVEL_ERROR, "Missing path for --output-private.");
-                return;
-            }
+            char *path = strtok(NULL, " ");
+            if (path) strncpy(output_private_path, path, sizeof(output_private_path) - 1);
         } else if (strcmp(arg, "--output-public") == 0) {
-            arg = strtok(NULL, " "); // Get the next token as the path
-            if (arg) {
-                strncpy(public_output_path, arg, sizeof(public_output_path) - 1);
-                public_output_path[sizeof(public_output_path) - 1] = '\0'; // Ensure null-termination
-                save_to_files = true;
-            } else {
-                printf(ANSI_COLOR_RED "Error: --output-public requires a file path.\n" ANSI_COLOR_RESET);
-                logger_log(LOG_LEVEL_ERROR, "Missing path for --output-public.");
-                return;
-            }
+            char *path = strtok(NULL, " ");
+            if (path) strncpy(output_public_path, path, sizeof(output_public_path) - 1);
         } else if (strcmp(arg, "--name") == 0) {
-            arg = strtok(NULL, "\""); // Get the name (assumes it might be quoted)
-            if (arg) {
-                strncpy(name_for_keys, arg, sizeof(name_for_keys) - 1);
-                name_for_keys[sizeof(name_for_keys) - 1] = '\0'; // Ensure null-termination
-            } else {
-                printf(ANSI_COLOR_YELLOW "Warning: --name provided without a value.\n" ANSI_COLOR_RESET);
-                logger_log(LOG_LEVEL_WARN, "Missing name for --name argument.");
-            }
+            char *n = strtok(NULL, " ");
+            if (n) strncpy(name, n, sizeof(name) - 1);
+        } else {
+            printf(ANSI_COLOR_YELLOW "Warning: Unknown argument for generate-keys: %s\n" ANSI_COLOR_RESET, arg);
         }
-        arg = strtok(NULL, " "); // Move to the next argument
     }
 
-    if (key_management_generate_key_pair(generated_priv_pem, generated_pub_pem, sizeof(generated_priv_pem)) == 0) {
-        // Successfully generated keys in memory (into generated_priv_pem and generated_pub_pem)
+    printf(ANSI_COLOR_CYAN "Generating new ECDSA key pair...\n" ANSI_COLOR_RESET);
 
-        if (save_to_files) {
-            if (disk_storage_ensure_dir("data/keys/private_keys") != 0 ||
-                disk_storage_ensure_dir("data/keys/public_keys") != 0) {
-                logger_log(LOG_LEVEL_ERROR, "Failed to ensure key directories exist for saving files.");
-                printf(ANSI_COLOR_RED "Failed to create key storage directories. Keys will NOT be saved to files.\n" ANSI_COLOR_RESET);
-            } else {
-                FILE *priv_file = fopen(private_output_path, "w");
-                if (priv_file) {
-                    fprintf(priv_file, "%s", generated_priv_pem);
-                    fclose(priv_file);
-                    printf(ANSI_COLOR_GREEN "Private key saved to: %s\n" ANSI_COLOR_RESET, private_output_path);
-                    logger_log(LOG_LEVEL_INFO, "Private key saved to %s", private_output_path);
-                } else {
-                    logger_log(LOG_LEVEL_ERROR, "Failed to open private key file for writing: %s. errno: %d", private_output_path, errno);
-                    perror(ANSI_COLOR_RED "Error saving private key file" ANSI_COLOR_RESET);
-                    printf(ANSI_COLOR_RED "Failed to save private key to file: %s. Check permissions and path.\n" ANSI_COLOR_RESET, private_output_path);
-                }
-
-                FILE *pub_file = fopen(public_output_path, "w");
-                if (pub_file) {
-                    fprintf(pub_file, "%s", generated_pub_pem);
-                    fclose(pub_file);
-                    printf(ANSI_COLOR_GREEN "Public key saved to: %s\n" ANSI_COLOR_RESET, public_output_path);
-                    logger_log(LOG_LEVEL_INFO, "Public key saved to %s", public_output_path);
-                } else {
-                    logger_log(LOG_LEVEL_ERROR, "Failed to open public key file for writing: %s. errno: %d", public_output_path, errno);
-                    perror(ANSI_COLOR_RED "Error saving public key file" ANSI_COLOR_RESET);
-                    printf(ANSI_COLOR_RED "Failed to save public key to file: %s. Check permissions and path.\n" ANSI_COLOR_RESET, public_output_path);
-                }
-            }
+    // If no specific paths are given, use default paths within data/keys and provided name
+    if (strlen(name) > 0) {
+        if (strlen(output_private_path) == 0) {
+            snprintf(output_private_path, sizeof(output_private_path), "data/keys/private_keys/%s_private.pem", name);
         }
-
-        strncpy(g_cli_private_key_pem, generated_priv_pem, sizeof(g_cli_private_key_pem) - 1);
-        g_cli_private_key_pem[sizeof(g_cli_private_key_pem) - 1] = '\0';
-
-        strncpy(g_cli_public_key_pem, generated_pub_pem, sizeof(g_cli_public_key_pem) - 1);
-        g_cli_public_key_pem[sizeof(g_cli_public_key_pem) - 1] = '\0';
-
-
-        if (key_management_derive_public_key_hash(g_cli_public_key_pem, g_cli_public_key_hash, sizeof(g_cli_public_key_hash)) == 0) {
-            printf(ANSI_COLOR_GREEN "Keys generated successfully and set as active for this session!\n" ANSI_COLOR_RESET);
-            printf(ANSI_COLOR_GREEN "Public Key Hash (for transactions): %s\n" ANSI_COLOR_RESET, g_cli_public_key_hash);
-            if (strlen(name_for_keys) > 0) {
-                printf(ANSI_COLOR_GREEN "Name for keys: %s\n" ANSI_COLOR_RESET, name_for_keys);
-            }
-            logger_log(LOG_LEVEL_INFO, "New ECDSA key pair generated and set for CLI session. Hash: %s", g_cli_public_key_hash);
-        } else {
-            printf(ANSI_COLOR_RED "Failed to derive public key hash after generation. Keys may not be usable for transactions.\n" ANSI_COLOR_RESET);
-            logger_log(LOG_LEVEL_ERROR, "Failed to derive public key hash after generation.");
+        if (strlen(output_public_path) == 0) {
+            snprintf(output_public_path, sizeof(output_public_path), "data/keys/public_keys/%s_public.pem", name);
         }
     } else {
-        printf(ANSI_COLOR_RED "Failed to generate key pair. Check logs for OpenSSL errors.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_ERROR, "Failed to generate ECDSA key pair.");
+        printf(ANSI_COLOR_YELLOW "No name provided. Keys will not be saved to named files.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_INFO, "Key generation requested without a name. Keys will not be saved to named files.");
+    }
+
+    char new_private_key_pem[4096];
+    char new_public_key_pem[4096];
+    char new_public_key_hash[SHA256_HEX_LEN + 1];
+
+    if (key_management_generate_key_pair(new_private_key_pem, new_public_key_pem, sizeof(new_private_key_pem)) == 0) {
+        if (key_management_derive_public_key_hash(new_public_key_pem, new_public_key_hash, sizeof(new_public_key_hash)) == 0) {
+            // Update global CLI keys
+            strncpy(g_cli_private_key_pem, new_private_key_pem, sizeof(g_cli_private_key_pem) - 1);
+            g_cli_private_key_pem[sizeof(g_cli_private_key_pem) - 1] = '\0';
+
+            strncpy(g_cli_public_key_pem, new_public_key_pem, sizeof(g_cli_public_key_pem) - 1);
+            g_cli_public_key_pem[sizeof(g_cli_public_key_pem) - 1] = '\0';
+
+            strncpy(g_cli_public_key_hash, new_public_key_hash, sizeof(g_cli_public_key_hash) - 1);
+            g_cli_public_key_hash[sizeof(g_cli_public_key_hash) - 1] = '\0';
+
+            printf(ANSI_COLOR_GREEN "New ECDSA key pair generated successfully!\n" ANSI_COLOR_RESET);
+            printf(ANSI_COLOR_GREEN "Active Wallet Public Key Hash: %s\n" ANSI_COLOR_RESET, g_cli_public_key_hash);
+            logger_log(LOG_LEVEL_INFO, "New ECDSA key pair generated and set as active. Public Key Hash: %s", g_cli_public_key_hash);
+
+            if (strlen(output_private_path) > 0 && strlen(output_public_path) > 0) {
+                if (key_management_save_key_to_file(new_private_key_pem, output_private_path) == 0 &&
+                    key_management_save_key_to_file(new_public_key_pem, output_public_path) == 0) {
+                    printf(ANSI_COLOR_GREEN "Keys saved to:\n- Private: %s\n- Public: %s\n" ANSI_COLOR_RESET, output_private_path, output_public_path);
+                    logger_log(LOG_LEVEL_INFO, "Keys saved to files: %s and %s", output_private_path, output_public_path);
+                } else {
+                    printf(ANSI_COLOR_RED "Failed to save keys to files. Check permissions or paths.\n" ANSI_COLOR_RESET);
+                    logger_log(LOG_LEVEL_ERROR, "Failed to save keys to files.");
+                }
+            } else if (strlen(name) > 0) {
+                 printf(ANSI_COLOR_YELLOW "Keys generated but not saved to files as paths were not explicitly specified, and a name was provided without full path generation logic.\n" ANSI_COLOR_RESET);
+                 logger_log(LOG_LEVEL_WARN, "Keys generated but not saved to files as paths were not explicitly specified.");
+            }
+        } else {
+            logger_log(LOG_LEVEL_ERROR, "Failed to derive public key hash for new key pair.");
+            printf(ANSI_COLOR_RED "Failed to derive public key hash for new key pair.\n" ANSI_COLOR_RESET);
+        }
+    } else {
+        logger_log(LOG_LEVEL_ERROR, "Failed to generate new ECDSA key pair.");
+        printf(ANSI_COLOR_RED "Failed to generate new ECDSA key pair.\n" ANSI_COLOR_RESET);
     }
 }
 
-
 static void handle_broadcast_transaction_interactive(Blockchain* bc) {
-    if (!bc) {
-        logger_log(LOG_LEVEL_ERROR, "Blockchain not created/loaded. Cannot broadcast transaction.");
-        printf(ANSI_COLOR_RED "Blockchain not created or loaded. Cannot broadcast transaction.\n" ANSI_COLOR_RESET);
-        return;
-    }
+    (void)bc; // Mark 'bc' as unused
 
     if (mempool_get_size() == 0) {
-        printf(ANSI_COLOR_YELLOW "No pending transactions in the mempool to broadcast.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_INFO, "Attempted to broadcast, but mempool is empty.");
+        printf(ANSI_COLOR_YELLOW "Mempool is empty. No transactions to broadcast.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_INFO, "Mempool is empty, cannot broadcast transaction.");
         return;
     }
 
-    const Transaction* tx_to_broadcast = mempool_get_transaction_by_index(0);
-    if (!tx_to_broadcast) {
-        printf(ANSI_COLOR_RED "Failed to retrieve transaction for broadcasting from mempool.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_ERROR, "Failed to retrieve transaction for broadcasting.");
+    Transaction* tx_to_broadcast = mempool_get_first_transaction();
+
+    if (tx_to_broadcast == NULL) {
+        printf(ANSI_COLOR_RED "Failed to retrieve a transaction from mempool for broadcasting.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Failed to retrieve transaction from mempool for broadcast.");
         return;
     }
 
-    size_t serialized_tx_len;
-    uint8_t* serialized_tx = transaction_serialize(tx_to_broadcast, &serialized_tx_len);
-    if (!serialized_tx) {
+    printf(ANSI_COLOR_CYAN "Broadcasting transaction %s to connected peers...\n" ANSI_COLOR_RESET, tx_to_broadcast->transaction_id);
+
+    size_t serialized_len = 0;
+    uint8_t* serialized_tx = transaction_serialize(tx_to_broadcast, &serialized_len);
+
+    if (serialized_tx == NULL || serialized_len == 0) {
         printf(ANSI_COLOR_RED "Failed to serialize transaction for broadcasting.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_ERROR, "Failed to serialize transaction for broadcasting.");
+        logger_log(LOG_LEVEL_ERROR, "Failed to serialize transaction %s for broadcast.", tx_to_broadcast->transaction_id);
         return;
     }
 
-    logger_log(LOG_LEVEL_INFO, "Attempting to broadcast transaction ID: %s", tx_to_broadcast->transaction_id);
-    printf(ANSI_COLOR_CYAN "Broadcasting transaction %s (size: %zu bytes) to all connected peers...\n" ANSI_COLOR_RESET, tx_to_broadcast->transaction_id, serialized_tx_len);
-
-    network_broadcast_data(MSG_TYPE_TRANSACTION, serialized_tx, serialized_tx_len);
+    // CORRECTED: Use MSG_TYPE_TRANSACTION and network_broadcast_data
+    if (network_broadcast_data(MSG_TYPE_TRANSACTION, serialized_tx, serialized_len) == 0) {
+        printf(ANSI_COLOR_GREEN "Transaction broadcast successful!\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_INFO, "Transaction %s broadcast successfully.", tx_to_broadcast->transaction_id);
+    } else {
+        printf(ANSI_COLOR_RED "Failed to broadcast transaction.\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Failed to broadcast transaction %s.", tx_to_broadcast->transaction_id);
+    }
 
     free(serialized_tx);
-
-    printf(ANSI_COLOR_GREEN "Transaction broadcast initiated for ID: %.10s...\n" ANSI_COLOR_RESET, tx_to_broadcast->transaction_id);
-    logger_log(LOG_LEVEL_INFO, "Transaction (ID: %s) broadcast initiated.", tx_to_broadcast->transaction_id);
 }

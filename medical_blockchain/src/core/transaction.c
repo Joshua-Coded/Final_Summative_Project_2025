@@ -10,7 +10,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <openssl/evp.h>
-
+#include <math.h>
 // Helper to get transaction type string
 static const char* get_transaction_type_string(TransactionType type) {
     switch (type) {
@@ -24,9 +24,9 @@ static const char* get_transaction_type_string(TransactionType type) {
 
 Transaction* transaction_create(TransactionType type,
                                 const char sender_public_key_hash[SHA256_HEX_LEN + 1],
-                                const char signature[ECDSA_SIGNATURE_HEX_LEN + 1]) { // FIX: Use correct signature size
-    if (sender_public_key_hash == NULL || signature == NULL) {
-        logger_log(LOG_LEVEL_ERROR, "Invalid input: sender_public_key_hash or signature is NULL.");
+                                const char sender_public_key_pem[MAX_PEM_KEY_LEN]) { // Corrected parameter name and type
+    if (sender_public_key_hash == NULL || sender_public_key_pem == NULL) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid input: sender_public_key_hash or sender_public_key_pem is NULL.");
         return NULL;
     }
 
@@ -42,9 +42,10 @@ Transaction* transaction_create(TransactionType type,
     strncpy(tx->sender_public_key_hash, sender_public_key_hash, SHA256_HEX_LEN);
     tx->sender_public_key_hash[SHA256_HEX_LEN] = '\0';
 
-    strncpy(tx->signature, signature, ECDSA_SIGNATURE_HEX_LEN); // FIX: Use correct signature size
-    tx->signature[ECDSA_SIGNATURE_HEX_LEN] = '\0'; // Ensure null termination
+    strncpy(tx->sender_public_key_pem, sender_public_key_pem, MAX_PEM_KEY_LEN - 1); // Copy PEM string
+    tx->sender_public_key_pem[MAX_PEM_KEY_LEN - 1] = '\0'; // Ensure null termination
 
+    tx->signature[0] = '\0'; // Signature is set later by transaction_sign
     tx->transaction_id[0] = '\0';
 
     if (type == TX_NEW_RECORD) {
@@ -124,13 +125,15 @@ int transaction_calculate_hash(const Transaction* tx, uint8_t output_hash[SHA256
 
     hasher_sha256_stream_init(ctx);
 
-    char data_buffer[1024];
+    char data_buffer[MAX_PEM_KEY_LEN + 1024]; // Increased size to accommodate PEM key
 
+    // Include sender_public_key_pem in the hash calculation
     int offset = snprintf(data_buffer, sizeof(data_buffer),
-                          "%d%ld%s",
+                          "%d%ld%s%s", // Added %s for sender_public_key_pem
                           tx->type,
                           (long)tx->timestamp,
-                          tx->sender_public_key_hash);
+                          tx->sender_public_key_hash,
+                          tx->sender_public_key_pem); // Include the full public key PEM
 
     if (offset < 0 || (size_t)offset >= sizeof(data_buffer)) {
         logger_log(LOG_LEVEL_ERROR, "Error or overflow during initial data formatting for transaction hash.");
@@ -172,7 +175,7 @@ int transaction_calculate_hash(const Transaction* tx, uint8_t output_hash[SHA256
     return 0;
 }
 
-int transaction_sign(Transaction* tx, const char* private_key_pem) { // Renamed param to private_key_pem
+int transaction_sign(Transaction* tx, const char* private_key_pem) {
     if (tx == NULL || private_key_pem == NULL) {
         logger_log(LOG_LEVEL_ERROR, "Invalid arguments for transaction_sign.");
         return -1;
@@ -194,6 +197,7 @@ int transaction_sign(Transaction* tx, const char* private_key_pem) { // Renamed 
     tx->transaction_id[SHA256_HEX_LEN] = '\0';
     free(tx_id_hex);
 
+    // Using tx->signature with its defined size
     if (ecdsa_sign_hash(tx_data_hash_binary, SHA256_DIGEST_LENGTH,
                         private_key_pem, tx->signature, sizeof(tx->signature)) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to cryptographically sign transaction hash.");
@@ -205,8 +209,8 @@ int transaction_sign(Transaction* tx, const char* private_key_pem) { // Renamed 
 }
 
 bool transaction_verify_signature(const Transaction* tx) {
-    if (tx == NULL || strlen(tx->transaction_id) == 0 || strlen(tx->signature) == 0 || strlen(tx->sender_public_key_hash) == 0) {
-        logger_log(LOG_LEVEL_ERROR, "Invalid transaction for signature verification: missing ID, signature, or sender key hash.");
+    if (tx == NULL || strlen(tx->transaction_id) == 0 || strlen(tx->signature) == 0 || strlen(tx->sender_public_key_pem) == 0) {
+        logger_log(LOG_LEVEL_ERROR, "Invalid transaction for signature verification: missing ID, signature, or sender public key PEM.");
         return false;
     }
 
@@ -230,8 +234,9 @@ bool transaction_verify_signature(const Transaction* tx) {
     }
     free(recomputed_tx_id_hex);
 
+    // Use tx->sender_public_key_pem for verification
     bool is_valid = ecdsa_verify_signature(recomputed_tx_data_hash_binary, SHA256_DIGEST_LENGTH,
-                                          tx->signature, tx->sender_public_key_hash);
+                                          tx->signature, tx->sender_public_key_pem); // Use PEM here
 
     if (!is_valid) {
         logger_log(LOG_LEVEL_WARN, "Signature verification failed for transaction %s.", tx->transaction_id);
@@ -274,6 +279,10 @@ int transaction_is_valid(const Transaction* tx) {
 
     if (strlen(tx->sender_public_key_hash) == 0) {
         logger_log(LOG_LEVEL_WARN, "Transaction %s has empty sender public key hash.", tx->transaction_id);
+        return -1;
+    }
+    if (strlen(tx->sender_public_key_pem) == 0) {
+        logger_log(LOG_LEVEL_WARN, "Transaction %s has empty sender public key PEM.", tx->transaction_id);
         return -1;
     }
 
@@ -324,6 +333,9 @@ void transaction_print(const Transaction* tx, const uint8_t encryption_key[AES_2
     printf(ANSI_COLOR_BLUE "  Transaction ID:            " ANSI_COLOR_RESET "%s\n", tx->transaction_id);
     printf(ANSI_COLOR_BLUE "  Type:                      " ANSI_COLOR_RESET "%s (%d)\n", get_transaction_type_string(tx->type), tx->type);
     printf(ANSI_COLOR_BLUE "  Sender Public Key Hash:" ANSI_COLOR_RESET "%s\n", tx->sender_public_key_hash);
+    printf(ANSI_COLOR_BLUE "  Sender Public Key PEM (Excerpt):\n" ANSI_COLOR_RESET "    %.*s%s\n", 
+           (int)fmin(strlen(tx->sender_public_key_pem), 60), tx->sender_public_key_pem, 
+           strlen(tx->sender_public_key_pem) > 60 ? "..." : ""); // Print excerpt
     printf(ANSI_COLOR_BLUE "  Timestamp:                 " ANSI_COLOR_RESET "%ld (" ANSI_COLOR_BRIGHT_BLACK "%s" ANSI_COLOR_RESET ")", (long)tx->timestamp, ctime((const time_t*)&tx->timestamp));
 
     printf(ANSI_COLOR_MAGENTA "  Payload: \n" ANSI_COLOR_RESET);
@@ -393,7 +405,8 @@ uint8_t* transaction_serialize(const Transaction* tx, size_t* size) {
     size_t base_size = sizeof(tx->type) + sizeof(tx->timestamp) +
                        (SHA256_HEX_LEN + 1) + // sender_public_key_hash
                        (TRANSACTION_ID_LEN + 1) + // transaction_id
-                       (ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
+                       (ECDSA_SIGNATURE_HEX_LEN + 1) + // signature
+                       (MAX_PEM_KEY_LEN); // sender_public_key_pem (fixed size)
 
     size_t payload_size = 0;
     size_t encrypted_data_actual_len = 0;
@@ -428,10 +441,12 @@ uint8_t* transaction_serialize(const Transaction* tx, size_t* size) {
     ptr += sizeof(tx->timestamp);
     memcpy(ptr, tx->sender_public_key_hash, SHA256_HEX_LEN + 1);
     ptr += (SHA256_HEX_LEN + 1);
-    memcpy(ptr, tx->transaction_id, TRANSACTION_ID_LEN + 1); // Use TRANSACTION_ID_LEN
+    memcpy(ptr, tx->transaction_id, TRANSACTION_ID_LEN + 1);
     ptr += (TRANSACTION_ID_LEN + 1);
-    memcpy(ptr, tx->signature, ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
-    ptr += (ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
+    memcpy(ptr, tx->signature, ECDSA_SIGNATURE_HEX_LEN + 1);
+    ptr += (ECDSA_SIGNATURE_HEX_LEN + 1);
+    memcpy(ptr, tx->sender_public_key_pem, MAX_PEM_KEY_LEN); // Serialize the PEM string
+    ptr += MAX_PEM_KEY_LEN;
 
     if (tx->type == TX_NEW_RECORD) {
         memcpy(ptr, &tx->data.new_record.encrypted_data_len, sizeof(tx->data.new_record.encrypted_data_len));
@@ -486,15 +501,21 @@ Transaction* transaction_deserialize(const uint8_t* data, size_t data_len) {
     ptr += (SHA256_HEX_LEN + 1);
     bytes_read += (SHA256_HEX_LEN + 1);
 
-    if (bytes_read + (TRANSACTION_ID_LEN + 1) > data_len) goto deserialize_error; // Use TRANSACTION_ID_LEN
-    memcpy(tx->transaction_id, ptr, TRANSACTION_ID_LEN + 1); // Use TRANSACTION_ID_LEN
+    if (bytes_read + (TRANSACTION_ID_LEN + 1) > data_len) goto deserialize_error;
+    memcpy(tx->transaction_id, ptr, TRANSACTION_ID_LEN + 1);
     ptr += (TRANSACTION_ID_LEN + 1);
     bytes_read += (TRANSACTION_ID_LEN + 1);
 
-    if (bytes_read + (ECDSA_SIGNATURE_HEX_LEN + 1) > data_len) goto deserialize_error; // FIX: Use correct signature size
-    memcpy(tx->signature, ptr, ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
-    ptr += (ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
-    bytes_read += (ECDSA_SIGNATURE_HEX_LEN + 1); // FIX: Use correct signature size
+    if (bytes_read + (ECDSA_SIGNATURE_HEX_LEN + 1) > data_len) goto deserialize_error;
+    memcpy(tx->signature, ptr, ECDSA_SIGNATURE_HEX_LEN + 1);
+    ptr += (ECDSA_SIGNATURE_HEX_LEN + 1);
+    bytes_read += (ECDSA_SIGNATURE_HEX_LEN + 1);
+
+    // Deserialize sender_public_key_pem
+    if (bytes_read + MAX_PEM_KEY_LEN > data_len) goto deserialize_error;
+    memcpy(tx->sender_public_key_pem, ptr, MAX_PEM_KEY_LEN);
+    ptr += MAX_PEM_KEY_LEN;
+    bytes_read += MAX_PEM_KEY_LEN;
 
     if (tx->type == TX_NEW_RECORD) {
         if (bytes_read + sizeof(tx->data.new_record.encrypted_data_len) > data_len) goto deserialize_error;

@@ -13,6 +13,10 @@
 #define TRANSACTION_ID_LEN SHA256_HEX_LEN
 #endif
 
+// Define a reasonable max size for PEM keys
+// 4096 is typically more than enough for ECDSA PEM strings
+#define MAX_PEM_KEY_LEN 4096
+
 typedef enum {
     TX_NEW_RECORD,
     TX_REQUEST_ACCESS,
@@ -25,9 +29,10 @@ typedef struct Transaction {
     int64_t timestamp;
     char transaction_id[TRANSACTION_ID_LEN + 1];
     char sender_public_key_hash[SHA256_HEX_LEN + 1];
-
-    // FIX: Use ECDSA_SIGNATURE_HEX_LEN for correct size
     char signature[ECDSA_SIGNATURE_HEX_LEN + 1];
+
+    // NEW: Add field for sender's full public key PEM string
+    char sender_public_key_pem[MAX_PEM_KEY_LEN]; // Store the full PEM string here
 
     union {
         struct {
@@ -44,10 +49,10 @@ typedef struct Transaction {
     } data;
 } Transaction;
 
-// Creates a new transaction.
+// Creates a new transaction. Updated signature to include the public key PEM.
 Transaction* transaction_create(TransactionType type,
                                 const char sender_public_key_hash[SHA256_HEX_LEN + 1],
-                                const char signature[ECDSA_SIGNATURE_HEX_LEN + 1]); // FIX: Update signature param size
+                                const char sender_public_key_pem[MAX_PEM_KEY_LEN]);
 
 // Adds new medical record data to a TX_NEW_RECORD transaction.
 int transaction_set_new_record_data(Transaction* tx,
@@ -61,13 +66,13 @@ int transaction_set_access_control_data(Transaction* tx,
                                         const char related_record_hash[SHA256_HEX_LEN + 1],
                                         const char target_user_public_key_hash[SHA256_HEX_LEN + 1]);
 
-// Calculates the hash of a transaction.
+// Calculates the hash of a transaction (excluding its signature and ID).
 int transaction_calculate_hash(const Transaction* tx, uint8_t output_hash[SHA256_DIGEST_LENGTH]);
 
-// Signs a transaction.
-int transaction_sign(Transaction* tx, const char* private_key_pem); // Changed private_key_hex to private_key_pem to match usage
+// Signs a transaction using the provided private key PEM.
+int transaction_sign(Transaction* tx, const char* private_key_pem);
 
-// Verifies the signature of a transaction.
+// Verifies the signature of a transaction using its embedded public key PEM.
 bool transaction_verify_signature(const Transaction* tx);
 
 // Verifies the integrity and validity of a transaction.
