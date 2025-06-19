@@ -436,3 +436,135 @@
 [2025-06-19 12:57:32] [INFO] All peer connections closed.
 [2025-06-19 12:57:32] [INFO] Shutting down mempool...
 [2025-06-19 12:57:32] [INFO] Mempool shutdown complete.
+[2025-06-19 13:00:55] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:00:55] [INFO] Network module initialized.
+[2025-06-19 13:00:55] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:00:55] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:00:55] [INFO] Public key hash derived successfully.
+[2025-06-19 13:00:55] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:01:05] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:01:05] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:01:05] [INFO] Block #0 mined successfully! Nonce: 326, Hash: 00f69e22720cfc0c864d85a5472d486af7d373b551b2aa1384e81375befbcf73
+[2025-06-19 13:01:05] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:01:05] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:01:05] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:01:29] [INFO] Hash signed successfully. Signature length: 71 bytes (raw), 142 bytes (hex)
+[2025-06-19 13:01:29] [INFO] Transaction a6c2d4f37eba05a5d83c047b335e053265853f81b34c0cde54aba0a51ad8c2fd signed.
+[2025-06-19 13:01:29] [INFO] Sample transaction created and signed with ID: a6c2d4f37eba05a5d83c047b335e053265853f81b34c0cde54aba0a51ad8c2fd
+[2025-06-19 13:01:29] [INFO] Transaction a6c2d4f37eba05a5d83c047b335e053265853f81b34c0cde54aba0a51ad8c2fd added to mempool. Current size: 1
+[2025-06-19 13:01:29] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 13:01:39] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 13:01:39] [INFO]   Tx 1: ID: a6c2d4f37eba05a5d83c047b335e053265853f81b34c0cde54aba0a51ad8c2fd, Type: 0
+[2025-06-19 13:01:39] [INFO] ------------------------------------------
+[2025-06-19 13:01:55] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-19 13:01:55] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:01:55] [INFO] Block #1 mined successfully! Nonce: 23, Hash: 00037dfee067ea5666194747e63b3984ac9478b512e245f38b967b6b12368502
+[2025-06-19 13:01:55] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 13:01:55] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-19 13:01:55] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 13:01:55] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 13:01:55] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:01:55] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:03:47] [INFO] Exiting CLI.
+[2025-06-19 13:03:47] [INFO] Shutting down network module...
+[2025-06-19 13:03:47] [INFO] Listener thread was not running.
+[2025-06-19 13:03:47] [INFO] All peer connections closed.
+[2025-06-19 13:03:47] [INFO] Shutting down mempool...
+[2025-06-19 13:03:47] [INFO] Mempool shutdown complete.
+[2025-06-19 13:06:48] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:06:48] [INFO] Network module initialized.
+[2025-06-19 13:06:48] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:06:48] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:06:48] [INFO] Public key hash derived successfully.
+[2025-06-19 13:06:48] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:06:54] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:06:54] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:06:54] [INFO] Block #0 mined successfully! Nonce: 102, Hash: 00de68766836a92ac7b4b45e1a380c599bc8d36aaa51a4464f01d664c291be9d
+[2025-06-19 13:06:54] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:06:54] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:06:54] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:07:12] [INFO] Hash signed successfully. Signature length: 72 bytes (raw), 144 bytes (hex)
+[2025-06-19 13:07:12] [INFO] Transaction 08441dec316021a3c325137c462e366c50dd5c59a2891045ecce41bdd1094e22 signed.
+[2025-06-19 13:07:12] [INFO] Sample transaction created and signed with ID: 08441dec316021a3c325137c462e366c50dd5c59a2891045ecce41bdd1094e22
+[2025-06-19 13:07:12] [INFO] Transaction 08441dec316021a3c325137c462e366c50dd5c59a2891045ecce41bdd1094e22 added to mempool. Current size: 1
+[2025-06-19 13:07:12] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 13:07:22] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 13:07:22] [INFO]   Tx 1: ID: 08441dec316021a3c325137c462e366c50dd5c59a2891045ecce41bdd1094e22, Type: 0
+[2025-06-19 13:07:22] [INFO] ------------------------------------------
+[2025-06-19 13:07:34] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-19 13:07:34] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:07:34] [INFO] Block #1 mined successfully! Nonce: 440, Hash: 000cd73032c45c1e1d488a06fad8e3e7369aedda00945631b4abb4fe963f5631
+[2025-06-19 13:07:34] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 13:07:34] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-19 13:07:34] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 13:07:34] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 13:07:34] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:07:34] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:10:41] [INFO] Exiting CLI.
+[2025-06-19 13:10:41] [INFO] Shutting down network module...
+[2025-06-19 13:10:41] [INFO] Listener thread was not running.
+[2025-06-19 13:10:41] [INFO] All peer connections closed.
+[2025-06-19 13:10:41] [INFO] Shutting down mempool...
+[2025-06-19 13:10:41] [INFO] Mempool shutdown complete.
+[2025-06-19 13:19:46] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:19:46] [INFO] Network module initialized.
+[2025-06-19 13:19:46] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:19:46] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:19:46] [INFO] Public key hash derived successfully.
+[2025-06-19 13:19:46] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:19:53] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:19:53] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:19:53] [INFO] Block #0 mined successfully! Nonce: 172, Hash: 004aec6711530644ab6c9031b652ef36b685261903d1303f791c77c8fdf300d4
+[2025-06-19 13:19:53] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:19:53] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:19:53] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:20:08] [INFO] Hash signed successfully. Signature length: 72 bytes (raw), 144 bytes (hex)
+[2025-06-19 13:20:08] [INFO] Transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec signed.
+[2025-06-19 13:20:08] [INFO] Sample transaction created and signed with ID: 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec
+[2025-06-19 13:20:08] [INFO] Transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec added to mempool. Current size: 1
+[2025-06-19 13:20:08] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 13:20:14] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 13:20:14] [INFO]   Tx 1: ID: 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec, Type: 0
+[2025-06-19 13:20:14] [INFO] ------------------------------------------
+[2025-06-19 13:20:22] [INFO] Attempting to mine new block #1. Pulled 1 transactions from global mempool.
+[2025-06-19 13:20:22] [INFO] Attempting to mine new block #1 with 1 transactions (now in block struct)...
+[2025-06-19 13:20:22] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:20:22] [INFO] Block #1 mined successfully! Nonce: 92, Hash: 001d3cbab9acdb488bb0cf2ab348502733b37d80ef4700e7719da966574be6a0
+[2025-06-19 13:20:22] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 13:20:22] [INFO] Global mempool cleared after mining block #1.
+[2025-06-19 13:20:22] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 13:20:22] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 13:20:22] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:20:22] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:28:33] [WARN] Authentication failed during AES-GCM decryption! Data may be tampered or key/IV/tag is incorrect.
+[2025-06-19 13:28:33] [WARN] Failed to decrypt medical record data for transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec (error code: -1).
+[2025-06-19 13:30:02] [INFO] Mempool is empty, cannot broadcast transaction.
+[2025-06-19 13:30:22] [INFO] Mempool is empty, nothing to print.
+[2025-06-19 13:30:40] [WARN] A blockchain is already loaded. Discarding in-memory chain before loading.
+[2025-06-19 13:30:40] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-19 13:30:40] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 2).
+[2025-06-19 13:30:40] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 2).
+[2025-06-19 13:30:52] [INFO] Attempting to mine new block #2. Pulled 0 transactions from global mempool.
+[2025-06-19 13:30:52] [INFO] Attempting to mine new block #2 with 0 transactions (now in block struct)...
+[2025-06-19 13:30:52] [INFO] Mining Block #2 with difficulty 0 (target prefix: '').
+[2025-06-19 13:30:52] [INFO] Block #2 mined successfully! Nonce: 0, Hash: bcca28731fe1dc83a2550b5b5772ecb001bbb3dbda22363da35daafa33078bcc
+[2025-06-19 13:30:52] [INFO] Block #2 added to the blockchain. Current length: 3.
+[2025-06-19 13:30:52] [INFO] Global mempool cleared after mining block #2.
+[2025-06-19 13:30:52] [INFO] New block mined successfully! Current blockchain height: 3
+[2025-06-19 13:30:52] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 3)...
+[2025-06-19 13:30:52] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:30:52] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:32:39] [WARN] Authentication failed during AES-GCM decryption! Data may be tampered or key/IV/tag is incorrect.
+[2025-06-19 13:32:39] [WARN] Failed to decrypt medical record data for transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec (error code: -1).
+[2025-06-19 13:32:42] [WARN] Authentication failed during AES-GCM decryption! Data may be tampered or key/IV/tag is incorrect.
+[2025-06-19 13:32:42] [WARN] Failed to decrypt medical record data for transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec (error code: -1).
+[2025-06-19 13:32:43] [WARN] Authentication failed during AES-GCM decryption! Data may be tampered or key/IV/tag is incorrect.
+[2025-06-19 13:32:43] [WARN] Failed to decrypt medical record data for transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec (error code: -1).
+[2025-06-19 13:32:54] [WARN] Authentication failed during AES-GCM decryption! Data may be tampered or key/IV/tag is incorrect.
+[2025-06-19 13:32:54] [WARN] Failed to decrypt medical record data for transaction 8d41c62eb2c3563be47591119443434e813ccb401b20e75a851a2ffec8da15ec (error code: -1).
+[2025-06-19 13:34:34] [INFO] Exiting CLI.
+[2025-06-19 13:34:34] [INFO] Shutting down network module...
+[2025-06-19 13:34:34] [INFO] Listener thread was not running.
+[2025-06-19 13:34:34] [INFO] All peer connections closed.
+[2025-06-19 13:34:34] [INFO] Shutting down mempool...
+[2025-06-19 13:34:34] [INFO] Mempool shutdown complete.
