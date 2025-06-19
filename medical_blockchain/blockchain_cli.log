@@ -799,3 +799,130 @@
 [2025-06-19 14:03:37] [DEBUG] Linked list structure destroyed.
 [2025-06-19 14:03:37] [INFO] Mempool shutdown complete.
 [2025-06-19 14:03:37] [INFO] Listener thread: Peer FD 5 disconnected gracefully.
+[2025-06-19 14:12:27] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 14:12:27] [INFO] Network module initialized.
+[2025-06-19 14:12:27] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 14:12:27] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 14:12:27] [INFO] Public key hash derived successfully.
+[2025-06-19 14:12:27] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 14:12:33] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 14:12:33] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 14:12:33] [INFO] Block #0 mined successfully! Nonce: 367, Hash: 00dc65f2c5940d9d9cc9ff77456dd9045cdf772b10fbf3cfdde4952fb5f412ac
+[2025-06-19 14:12:33] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 14:12:33] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 14:12:33] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 14:12:42] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-19 14:12:42] [INFO] [2025-06-19 14:12:42] [INFO] Network listener started on port 8080.
+Listener thread started on port 8080.
+[2025-06-19 14:12:42] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-19 14:12:57] [INFO] Log level set to debug.
+[2025-06-19 14:13:21] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 14:13:21] [INFO] Network module initialized.
+[2025-06-19 14:13:21] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 14:13:21] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 14:13:21] [INFO] Public key hash derived successfully.
+[2025-06-19 14:13:21] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 14:13:28] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 14:13:28] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 14:13:28] [INFO] Block #0 mined successfully! Nonce: 183, Hash: 006f323adb068849399b7585e3f5262868576dc947e9335c8629bfc18967a77e
+[2025-06-19 14:13:28] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 14:13:28] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 14:13:28] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 14:13:41] [INFO] Log level set to debug.
+[2025-06-19 14:13:49] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-19 14:13:49] [INFO] Successfully initiated connection to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-19 14:13:49] [INFO] Successfully initiated connection to peer 127.0.0.1:8080.
+[2025-06-19 14:13:49] [INFO] Peer added: 127.0.0.1:51362 (FD: 5). Total peers: 1
+[2025-06-19 14:13:49] [INFO] Listener thread: Accepted new connection from 127.0.0.1:51362. FD: 5
+[2025-06-19 14:14:22] [DEBUG] Transaction created for type: TX_NEW_RECORD
+[2025-06-19 14:14:22] [DEBUG] New record data set. Encrypted data length: 155
+[2025-06-19 14:14:22] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:22] [INFO] Hash signed successfully. Signature length: 71 bytes (raw), 142 bytes (hex)
+[2025-06-19 14:14:22] [INFO] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 signed.
+[2025-06-19 14:14:22] [INFO] Sample transaction created and signed with ID: 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34
+[2025-06-19 14:14:22] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:22] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:22] [DEBUG] ECDSA signature is VALID.
+[2025-06-19 14:14:22] [DEBUG] Signature verified successfully for transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34.
+[2025-06-19 14:14:22] [DEBUG] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 is valid.
+[2025-06-19 14:14:22] [DEBUG] Data added to linked list. Current size: 1
+[2025-06-19 14:14:22] [INFO] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 added to mempool. Current size: 1
+[2025-06-19 14:14:22] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 14:14:41] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 14:14:41] [INFO]   Tx 1: ID: 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34, Type: 0
+[2025-06-19 14:14:41] [INFO] ------------------------------------------
+[2025-06-19 14:14:50] [DEBUG] Successfully sent 4647 bytes (Type: 2, Payload Len: 4639) to FD 4.
+[2025-06-19 14:14:50] [DEBUG] Broadcasted 4647 bytes (Type: 2, Payload Len: 4639) to peer FD 4.
+[2025-06-19 14:14:50] [INFO] Broadcasted data (Type: 2, Data Len: 4639) to 1 peers.
+[2025-06-19 14:14:50] [DEBUG] Received full message (Type: 2, Payload Len: 4639) from FD 5.
+[2025-06-19 14:14:50] [INFO] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 broadcast successfully.
+[2025-06-19 14:14:50] [DEBUG] Handling message Type: 2, Payload Len: 4639
+[2025-06-19 14:14:50] [INFO] Received TRANSACTION message.
+[2025-06-19 14:14:50] [DEBUG] Transaction deserialized successfully. Type: TX_NEW_RECORD
+[2025-06-19 14:14:50] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:50] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:50] [DEBUG] ECDSA signature is VALID.
+[2025-06-19 14:14:50] [DEBUG] Signature verified successfully for transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34.
+[2025-06-19 14:14:50] [DEBUG] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 is valid.
+[2025-06-19 14:14:50] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:50] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:14:50] [DEBUG] ECDSA signature is VALID.
+[2025-06-19 14:14:50] [DEBUG] Signature verified successfully for transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34.
+[2025-06-19 14:14:50] [DEBUG] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 is valid.
+[2025-06-19 14:14:50] [DEBUG] Data added to linked list. Current size: 1
+[2025-06-19 14:14:50] [INFO] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 added to mempool. Current size: 1
+[2025-06-19 14:14:50] [INFO] Received and added transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 to mempool.
+[2025-06-19 14:15:28] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 14:15:28] [INFO]   Tx 1: ID: 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34, Type: 0
+[2025-06-19 14:15:28] [INFO] ------------------------------------------
+[2025-06-19 14:15:48] [DEBUG] DEBUG: Entering blockchain_mine_new_block. Current pending transactions (from Blockchain struct): 0
+[2025-06-19 14:15:48] [DEBUG] Block #1 created.
+[2025-06-19 14:15:48] [DEBUG] Head element removed from linked list. Current size: 0
+[2025-06-19 14:15:48] [DEBUG] Retrieved 1 transactions from mempool for block. Remaining: 0
+[2025-06-19 14:15:48] [INFO] Attempting to mine new block #1. Pulled 1 transactions from global mempool.
+[2025-06-19 14:15:48] [DEBUG] Transaction 6b2b136802d806086f0c5f2b49a094154df2608533ff050d6532b1bc4258be34 added to Block #1.
+[2025-06-19 14:15:48] [INFO] Attempting to mine new block #1 with 1 transactions (now in block struct)...
+[2025-06-19 14:15:48] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 14:15:48] [INFO] Block #1 mined successfully! Nonce: 73, Hash: 004d5221dc1819c6b619b522e615b6b190f7cb2ae3f14711e2616b40ae7c71bd
+[2025-06-19 14:15:48] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 14:15:48] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 14:15:48] [DEBUG] Mempool contents cleared.
+[2025-06-19 14:15:48] [INFO] Global mempool cleared after mining block #1.
+[2025-06-19 14:15:48] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 14:15:48] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 14:15:48] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 14:15:48] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 14:17:00] [INFO] Exiting CLI.
+[2025-06-19 14:17:00] [DEBUG] Destroying Block #0.
+[2025-06-19 14:17:00] [DEBUG] Block destroyed.
+[2025-06-19 14:17:00] [INFO] Shutting down network module...
+[2025-06-19 14:17:00] [INFO] Listener thread was not running.
+[2025-06-19 14:17:00] [INFO] All peer connections closed.
+[2025-06-19 14:17:00] [INFO] Shutting down mempool...
+[2025-06-19 14:17:00] [DEBUG] Clearing mempool with 1 transactions.
+[2025-06-19 14:17:00] [INFO] Peer FD 5 disconnected gracefully during read.
+[2025-06-19 14:17:00] [DEBUG] Freeing encrypted data for TX_NEW_RECORD.
+[2025-06-19 14:17:00] [INFO] Peer removed: 127.0.0.1:51362 (FD: 5).
+[2025-06-19 14:17:00] [DEBUG] Transaction structure destroyed.
+[2025-06-19 14:17:00] [INFO] Listener thread: Peer FD 5 disconnected gracefully.
+[2025-06-19 14:17:00] [DEBUG] Mempool contents cleared.
+[2025-06-19 14:17:00] [DEBUG] Linked list structure destroyed.
+[2025-06-19 14:17:00] [INFO] Mempool shutdown complete.
+[2025-06-19 14:17:13] [INFO] Exiting CLI.
+[2025-06-19 14:17:13] [DEBUG] Destroying Block #0.
+[2025-06-19 14:17:13] [DEBUG] Block destroyed.
+[2025-06-19 14:17:13] [DEBUG] Destroying Block #1.
+[2025-06-19 14:17:13] [DEBUG] Freeing encrypted data for TX_NEW_RECORD.
+[2025-06-19 14:17:13] [DEBUG] Transaction structure destroyed.
+[2025-06-19 14:17:13] [DEBUG] Block destroyed.
+[2025-06-19 14:17:13] [INFO] Shutting down network module...
+[2025-06-19 14:17:13] [INFO] Signaling listener thread to exit.
+[2025-06-19 14:17:14] [INFO] Listener thread: Listener socket closed.
+[2025-06-19 14:17:14] [INFO] Listener thread: Exiting.
+[2025-06-19 14:17:14] [INFO] Listener thread joined successfully.
+[2025-06-19 14:17:14] [INFO] All peer connections closed.
+[2025-06-19 14:17:14] [INFO] Shutting down mempool...
+[2025-06-19 14:17:14] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 14:17:14] [DEBUG] Mempool contents cleared.
+[2025-06-19 14:17:14] [DEBUG] Linked list structure destroyed.
+[2025-06-19 14:17:14] [INFO] Mempool shutdown complete.

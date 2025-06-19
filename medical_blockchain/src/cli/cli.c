@@ -342,13 +342,8 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
 
     printf(ANSI_COLOR_CYAN "Adding a new record transaction...\n" ANSI_COLOR_RESET);
 
-    // --- FIX START: Use the global g_cli_decryption_key for encryption ---
-    // Instead of generating a new random key for each transaction,
-    // we use the CLI's predefined "decryption" key for encryption.
-    // This allows `print-chain --decrypt` to actually decrypt the data
-    // using the same globally known key.
+    // FIX: Use the global g_cli_decryption_key for encryption
     const uint8_t* encryption_key_for_tx = g_cli_decryption_key;
-    // --- FIX END ---
 
     if (encryption_generate_random_bytes(iv, AES_GCM_IV_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to generate IV for transaction.");
@@ -628,10 +623,10 @@ static void handle_start_listener_interactive() {
     }
 
     printf(ANSI_COLOR_CYAN "Attempting to start listener on port %d...\n" ANSI_COLOR_RESET, port);
-    int peer_fd = network_start_listener(port);
-    if (peer_fd != -1) {
-        printf(ANSI_COLOR_GREEN "Network listener started successfully on port %d! (Peer FD: %d)\n" ANSI_COLOR_RESET, port, peer_fd);
-        logger_log(LOG_LEVEL_INFO, "Network listener started on port %d, Peer FD: %d", port, peer_fd);
+    // network_start_listener now returns 0 on success.
+    if (network_start_listener(port) == 0) {
+        printf(ANSI_COLOR_GREEN "Network listener started successfully on port %d!\n" ANSI_COLOR_RESET, port); // Removed FD print here
+        logger_log(LOG_LEVEL_INFO, "Network listener started on port %d.", port); // Keep detailed log
     } else {
         printf(ANSI_COLOR_RED "Failed to start network listener. %s\n" ANSI_COLOR_RESET, strerror(errno));
         logger_log(LOG_LEVEL_ERROR, "Failed to start network listener on port %d: %s", port, strerror(errno));
@@ -657,10 +652,10 @@ static void handle_connect_peer_interactive() {
     }
 
     printf(ANSI_COLOR_CYAN "Attempting to connect to peer %s:%d...\n" ANSI_COLOR_RESET, ip_str, port);
-    int peer_fd = network_connect_to_peer(ip_str, port); // Corrected function name
-    if (peer_fd != -1) {
-        printf(ANSI_COLOR_GREEN "Successfully connected to peer %s:%d! (Peer FD: %d)\n" ANSI_COLOR_RESET, ip_str, port, peer_fd);
-        logger_log(LOG_LEVEL_INFO, "Connected to peer %s:%d, Peer FD: %d", ip_str, port, peer_fd);
+    // network_connect_to_peer now returns 0 on successfully initiated connection
+    if (network_connect_to_peer(ip_str, port) == 0) {
+        printf(ANSI_COLOR_GREEN "Successfully initiated connection to peer %s:%d!\n" ANSI_COLOR_RESET, ip_str, port); // Removed FD print here
+        logger_log(LOG_LEVEL_INFO, "Successfully initiated connection to peer %s:%d.", ip_str, port); // Keep detailed log
     } else {
         printf(ANSI_COLOR_RED "Failed to connect to peer %s:%d. %s\n" ANSI_COLOR_RESET, ip_str, port, strerror(errno));
         logger_log(LOG_LEVEL_ERROR, "Failed to connect to peer %s:%d: %s", ip_str, port, strerror(errno));
@@ -682,8 +677,8 @@ static void handle_send_test_message_interactive() {
     }
 
     printf(ANSI_COLOR_CYAN "Sending test message to connected peers: \"%s\"\n" ANSI_COLOR_RESET, message);
-    // CORRECTED: Use MSG_TYPE_TEST_MESSAGE and network_broadcast_data
-    if (network_broadcast_data(MSG_TYPE_TEST_MESSAGE, (const uint8_t*)message, strlen(message) + 1) == 0) {
+    // FIX: Check if network_broadcast_data returned > 0 for success
+    if (network_broadcast_data(MSG_TYPE_TEST_MESSAGE, (const uint8_t*)message, strlen(message) + 1) > 0) {
         printf(ANSI_COLOR_GREEN "Test message sent successfully to all connected peers.\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_INFO, "Test message sent: \"%s\"", message);
     } else {
@@ -801,13 +796,13 @@ static void handle_broadcast_transaction_interactive(Blockchain* bc) {
         return;
     }
 
-    // CORRECTED: Use MSG_TYPE_TRANSACTION and network_broadcast_data
-    if (network_broadcast_data(MSG_TYPE_TRANSACTION, serialized_tx, serialized_len) == 0) {
+    // FIX: Changed condition to check if number of peers sent to is > 0 for success
+    if (network_broadcast_data(MSG_TYPE_TRANSACTION, serialized_tx, serialized_len) > 0) {
         printf(ANSI_COLOR_GREEN "Transaction broadcast successful!\n" ANSI_COLOR_RESET);
         logger_log(LOG_LEVEL_INFO, "Transaction %s broadcast successfully.", tx_to_broadcast->transaction_id);
     } else {
-        printf(ANSI_COLOR_RED "Failed to broadcast transaction.\n" ANSI_COLOR_RESET);
-        logger_log(LOG_LEVEL_ERROR, "Failed to broadcast transaction %s.", tx_to_broadcast->transaction_id);
+        printf(ANSI_COLOR_RED "Failed to broadcast transaction (no active peers or network error).\n" ANSI_COLOR_RESET);
+        logger_log(LOG_LEVEL_ERROR, "Failed to broadcast transaction %s (no peers or network error).", tx_to_broadcast->transaction_id);
     }
 
     free(serialized_tx);
