@@ -19,6 +19,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <stdbool.h>
+#include <errno.h> // <--- Include for perror and errno
 
 static Blockchain* g_current_blockchain = NULL;
 static char g_blockchain_file_path[256];
@@ -105,10 +106,22 @@ int cli_run() {
         return EXIT_FAILURE;
     }
 
+    // Ensure the key storage directories exist at startup
+    if (disk_storage_ensure_dir("data/keys") != 0 ||
+        disk_storage_ensure_dir("data/keys/private_keys") != 0 ||
+        disk_storage_ensure_dir("data/keys/public_keys") != 0) {
+        logger_log(LOG_LEVEL_FATAL, "Failed to create key storage directories. Exiting.");
+        network_shutdown();
+        logger_shutdown();
+        return EXIT_FAILURE;
+    }
+
+
     mempool_init();
 
     if (strlen(g_cli_private_key_pem) == 0) {
         logger_log(LOG_LEVEL_INFO, "Auto-generating initial ECDSA key pair for CLI session...");
+        // Auto-generation is for session only, not file saving
         if (key_management_generate_key_pair(g_cli_private_key_pem, g_cli_public_key_pem, sizeof(g_cli_private_key_pem)) == 0) {
             if (key_management_derive_public_key_hash(g_cli_public_key_pem, g_cli_public_key_hash, sizeof(g_cli_public_key_hash)) == 0) {
                 logger_log(LOG_LEVEL_INFO, "Initial ECDSA key pair generated successfully.");
@@ -230,7 +243,7 @@ static void print_help_menu() {
     printf("  " ANSI_COLOR_GREEN "view-block-hash <HASH>" ANSI_COLOR_RESET "  : Displays details of a specific block by its hash.\n");
     printf("  " ANSI_COLOR_GREEN "view-block-height <HEIGHT>" ANSI_COLOR_RESET ": Displays details of a specific block by its height.\n");
     printf("  " ANSI_COLOR_GREEN "print-mempool" ANSI_COLOR_RESET "          : Prints all transactions in the mempool.\n");
-    printf("  " ANSI_COLOR_GREEN "generate-keys" ANSI_COLOR_RESET "          : Generates new ECDSA keys for the CLI.\n");
+    printf("  " ANSI_COLOR_GREEN "generate-keys" ANSI_COLOR_RESET " [--output-private <path>] [--output-public <path>] [--name <str>]: Generates new ECDSA keys for the CLI.\n");
     printf("  " ANSI_COLOR_GREEN "broadcast-transaction" ANSI_COLOR_RESET ": Broadcasts the first pending transaction.\n");
     printf("  " ANSI_COLOR_CYAN "set-log-level" ANSI_COLOR_RESET "            : Set the logger level.\n");
     printf("  " ANSI_COLOR_BLUE "start-listener <port>" ANSI_COLOR_RESET "  : Starts listening for connections.\n");
@@ -670,17 +683,105 @@ static void handle_send_test_message_interactive() {
 static void handle_generate_keys_interactive() {
     printf(ANSI_COLOR_CYAN "Generating a new ECDSA key pair...\n" ANSI_COLOR_RESET);
 
-    memset(g_cli_private_key_pem, 0, sizeof(g_cli_private_key_pem));
-    memset(g_cli_public_key_pem, 0, sizeof(g_cli_public_key_pem));
-    memset(g_cli_public_key_hash, 0, sizeof(g_cli_public_key_hash));
+    // Temp buffers to hold the PEM strings from key_management_generate_key_pair
+    char generated_priv_pem[4096] = {0};
+    char generated_pub_pem[4096] = {0};
+    // Removed: char public_key_hash_temp[SHA256_HEX_LEN + 1] = {0}; // This variable is unused
 
-    if (key_management_generate_key_pair(g_cli_private_key_pem, g_cli_public_key_pem, sizeof(g_cli_private_key_pem)) == 0) {
+    char private_output_path[256] = {0};
+    char public_output_path[256] = {0};
+    char name_for_keys[256] = {0}; // For display purposes
+    bool save_to_files = false;
+
+    // Parse additional arguments for --output-private, --output-public, --name
+    char *arg = strtok(NULL, " ");
+    while (arg != NULL) {
+        if (strcmp(arg, "--output-private") == 0) {
+            arg = strtok(NULL, " "); // Get the next token as the path
+            if (arg) {
+                strncpy(private_output_path, arg, sizeof(private_output_path) - 1);
+                private_output_path[sizeof(private_output_path) - 1] = '\0'; // Ensure null-termination
+                save_to_files = true;
+            } else {
+                printf(ANSI_COLOR_RED "Error: --output-private requires a file path.\n" ANSI_COLOR_RESET);
+                logger_log(LOG_LEVEL_ERROR, "Missing path for --output-private.");
+                return;
+            }
+        } else if (strcmp(arg, "--output-public") == 0) {
+            arg = strtok(NULL, " "); // Get the next token as the path
+            if (arg) {
+                strncpy(public_output_path, arg, sizeof(public_output_path) - 1);
+                public_output_path[sizeof(public_output_path) - 1] = '\0'; // Ensure null-termination
+                save_to_files = true;
+            } else {
+                printf(ANSI_COLOR_RED "Error: --output-public requires a file path.\n" ANSI_COLOR_RESET);
+                logger_log(LOG_LEVEL_ERROR, "Missing path for --output-public.");
+                return;
+            }
+        } else if (strcmp(arg, "--name") == 0) {
+            arg = strtok(NULL, "\""); // Get the name (assumes it might be quoted)
+            if (arg) {
+                strncpy(name_for_keys, arg, sizeof(name_for_keys) - 1);
+                name_for_keys[sizeof(name_for_keys) - 1] = '\0'; // Ensure null-termination
+            } else {
+                printf(ANSI_COLOR_YELLOW "Warning: --name provided without a value.\n" ANSI_COLOR_RESET);
+                logger_log(LOG_LEVEL_WARN, "Missing name for --name argument.");
+            }
+        }
+        arg = strtok(NULL, " "); // Move to the next argument
+    }
+
+    if (key_management_generate_key_pair(generated_priv_pem, generated_pub_pem, sizeof(generated_priv_pem)) == 0) {
+        // Successfully generated keys in memory (into generated_priv_pem and generated_pub_pem)
+
+        if (save_to_files) {
+            if (disk_storage_ensure_dir("data/keys/private_keys") != 0 ||
+                disk_storage_ensure_dir("data/keys/public_keys") != 0) {
+                logger_log(LOG_LEVEL_ERROR, "Failed to ensure key directories exist for saving files.");
+                printf(ANSI_COLOR_RED "Failed to create key storage directories. Keys will NOT be saved to files.\n" ANSI_COLOR_RESET);
+            } else {
+                FILE *priv_file = fopen(private_output_path, "w");
+                if (priv_file) {
+                    fprintf(priv_file, "%s", generated_priv_pem);
+                    fclose(priv_file);
+                    printf(ANSI_COLOR_GREEN "Private key saved to: %s\n" ANSI_COLOR_RESET, private_output_path);
+                    logger_log(LOG_LEVEL_INFO, "Private key saved to %s", private_output_path);
+                } else {
+                    logger_log(LOG_LEVEL_ERROR, "Failed to open private key file for writing: %s. errno: %d", private_output_path, errno);
+                    perror(ANSI_COLOR_RED "Error saving private key file" ANSI_COLOR_RESET);
+                    printf(ANSI_COLOR_RED "Failed to save private key to file: %s. Check permissions and path.\n" ANSI_COLOR_RESET, private_output_path);
+                }
+
+                FILE *pub_file = fopen(public_output_path, "w");
+                if (pub_file) {
+                    fprintf(pub_file, "%s", generated_pub_pem);
+                    fclose(pub_file);
+                    printf(ANSI_COLOR_GREEN "Public key saved to: %s\n" ANSI_COLOR_RESET, public_output_path);
+                    logger_log(LOG_LEVEL_INFO, "Public key saved to %s", public_output_path);
+                } else {
+                    logger_log(LOG_LEVEL_ERROR, "Failed to open public key file for writing: %s. errno: %d", public_output_path, errno);
+                    perror(ANSI_COLOR_RED "Error saving public key file" ANSI_COLOR_RESET);
+                    printf(ANSI_COLOR_RED "Failed to save public key to file: %s. Check permissions and path.\n" ANSI_COLOR_RESET, public_output_path);
+                }
+            }
+        }
+
+        strncpy(g_cli_private_key_pem, generated_priv_pem, sizeof(g_cli_private_key_pem) - 1);
+        g_cli_private_key_pem[sizeof(g_cli_private_key_pem) - 1] = '\0';
+
+        strncpy(g_cli_public_key_pem, generated_pub_pem, sizeof(g_cli_public_key_pem) - 1);
+        g_cli_public_key_pem[sizeof(g_cli_public_key_pem) - 1] = '\0';
+
+
         if (key_management_derive_public_key_hash(g_cli_public_key_pem, g_cli_public_key_hash, sizeof(g_cli_public_key_hash)) == 0) {
             printf(ANSI_COLOR_GREEN "Keys generated successfully and set as active for this session!\n" ANSI_COLOR_RESET);
             printf(ANSI_COLOR_GREEN "Public Key Hash (for transactions): %s\n" ANSI_COLOR_RESET, g_cli_public_key_hash);
+            if (strlen(name_for_keys) > 0) {
+                printf(ANSI_COLOR_GREEN "Name for keys: %s\n" ANSI_COLOR_RESET, name_for_keys);
+            }
             logger_log(LOG_LEVEL_INFO, "New ECDSA key pair generated and set for CLI session. Hash: %s", g_cli_public_key_hash);
         } else {
-            printf(ANSI_COLOR_RED "Failed to derive public key hash after generation.\n" ANSI_COLOR_RESET);
+            printf(ANSI_COLOR_RED "Failed to derive public key hash after generation. Keys may not be usable for transactions.\n" ANSI_COLOR_RESET);
             logger_log(LOG_LEVEL_ERROR, "Failed to derive public key hash after generation.");
         }
     } else {
@@ -688,6 +789,7 @@ static void handle_generate_keys_interactive() {
         logger_log(LOG_LEVEL_ERROR, "Failed to generate ECDSA key pair.");
     }
 }
+
 
 static void handle_broadcast_transaction_interactive(Blockchain* bc) {
     if (!bc) {

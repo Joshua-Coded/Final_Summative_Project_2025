@@ -237,3 +237,76 @@
 [2025-06-19 10:03:09] [INFO] All peer connections closed.
 [2025-06-19 10:03:09] [INFO] Shutting down mempool...
 [2025-06-19 10:03:09] [INFO] Mempool shutdown complete.
+[2025-06-19 10:28:57] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 10:28:57] [INFO] Network module initialized.
+[2025-06-19 10:28:57] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 10:28:57] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:28:57] [INFO] Public key hash derived successfully.
+[2025-06-19 10:28:57] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 10:30:46] [INFO] Exiting CLI.
+[2025-06-19 10:30:46] [INFO] Shutting down network module...
+[2025-06-19 10:30:46] [INFO] Listener thread was not running.
+[2025-06-19 10:30:46] [INFO] All peer connections closed.
+[2025-06-19 10:30:46] [INFO] Shutting down mempool...
+[2025-06-19 10:30:46] [INFO] Mempool shutdown complete.
+[2025-06-19 10:30:49] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 10:30:49] [INFO] Network module initialized.
+[2025-06-19 10:30:49] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 10:30:49] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:30:49] [INFO] Public key hash derived successfully.
+[2025-06-19 10:30:49] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 10:31:44] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:31:44] [INFO] Public key hash derived successfully.
+[2025-06-19 10:31:44] [INFO] New ECDSA key pair generated and set for CLI session. Hash: 347ea716e1b7c329bfbeb728402f39ffeb656eba38cad8603481476a4d8349e9
+[2025-06-19 10:32:29] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:32:29] [INFO] Public key hash derived successfully.
+[2025-06-19 10:32:29] [INFO] New ECDSA key pair generated and set for CLI session. Hash: ddf030a5f906103d3b4ebce96b007e62b3ec21d0a3ac8ee54f7cdb0146489b8e
+[2025-06-19 10:33:52] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 10:33:52] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 10:33:52] [INFO] Block #0 mined successfully! Nonce: 145, Hash: 00d677ddbc6fd98d96d3e4b9ebbcd72e37477c04746f51a65fff6d60ff894dd8
+[2025-06-19 10:33:52] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 10:33:52] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 10:33:52] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 10:37:07] [INFO] Hash signed successfully.
+[2025-06-19 10:37:07] [INFO] Transaction 413eb84f45ed5bb49a02bc2ca947dd05a48190cf655dd9afeb7c5edff3bddd4a signed.
+[2025-06-19 10:37:07] [INFO] Sample transaction created and signed with ID: 413eb84f45ed5bb49a02bc2ca947dd05a48190cf655dd9afeb7c5edff3bddd4a
+[2025-06-19 10:37:07] [ERROR] Failed to read key from PEM string. Check format/type.
+[2025-06-19 10:37:07] [ERROR] key_from_pem_string OpenSSL Error: error:0480006C:PEM routines::no start line
+[2025-06-19 10:37:07] [ERROR] Failed to load public key from PEM string for verification.
+[2025-06-19 10:37:07] [WARN] Signature verification failed for transaction 413eb84f45ed5bb49a02bc2ca947dd05a48190cf655dd9afeb7c5edff3bddd4a.
+[2025-06-19 10:37:07] [ERROR] Transaction 413eb84f45ed5bb49a02bc2ca947dd05a48190cf655dd9afeb7c5edff3bddd4a: Signature verification failed.
+[2025-06-19 10:37:07] [WARN] Attempted to add an invalid transaction to mempool. ID: 413eb84f45ed5bb49a02bc2ca947dd05a48190cf655dd9afeb7c5edff3bddd4a
+[2025-06-19 10:37:07] [ERROR] Failed to add transaction to mempool (mempool full or duplicate).
+[2025-06-19 10:38:14] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 10:38:14] [INFO] Network module initialized.
+[2025-06-19 10:38:14] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 10:38:14] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:38:14] [INFO] Public key hash derived successfully.
+[2025-06-19 10:38:14] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 10:38:26] [INFO] Mempool is empty, nothing to print.
+[2025-06-19 10:39:00] [INFO] Exiting CLI.
+[2025-06-19 10:39:00] [INFO] Shutting down network module...
+[2025-06-19 10:39:00] [INFO] Listener thread was not running.
+[2025-06-19 10:39:00] [INFO] All peer connections closed.
+[2025-06-19 10:39:00] [INFO] Shutting down mempool...
+[2025-06-19 10:39:00] [INFO] Mempool shutdown complete.
+[2025-06-19 10:41:38] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 10:41:38] [INFO] Network module initialized.
+[2025-06-19 10:41:38] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 10:41:38] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:41:38] [INFO] Public key hash derived successfully.
+[2025-06-19 10:41:38] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 10:41:55] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:41:55] [INFO] Public key hash derived successfully.
+[2025-06-19 10:41:55] [INFO] New ECDSA key pair generated and set for CLI session. Hash: e613e0b9d381c65042ec4affd74ca87d0906b8ab04783cc0755b97ce1935657d
+[2025-06-19 10:42:14] [WARN] Unknown command: 'blockchain'. Type 'help' for options.
+[2025-06-19 10:42:36] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:42:36] [INFO] Public key hash derived successfully.
+[2025-06-19 10:42:36] [INFO] New ECDSA key pair generated and set for CLI session. Hash: c1b52e0de02be53267c58242f8db797fd8b671f42b6b5c707d284b3b3ab4bf1e
+[2025-06-19 10:42:53] [INFO] Exiting CLI.
+[2025-06-19 10:44:55] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:44:55] [INFO] Public key hash derived successfully.
+[2025-06-19 10:44:55] [INFO] New ECDSA key pair generated and set for CLI session. Hash: c7c2c0bd2011987bd962750a6a95d8f76eca2f178ffd72a10c9e9ed9778d4504
+[2025-06-19 10:45:13] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:45:13] [INFO] Public key hash derived successfully.
+[2025-06-19 10:45:13] [INFO] New ECDSA key pair generated and set for CLI session. Hash: 02748957b9789fd6513fbcb3d7a401bed2dd3cac3014f5f4853f3edaba6c5b58
