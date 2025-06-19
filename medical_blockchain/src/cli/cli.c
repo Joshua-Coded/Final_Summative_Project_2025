@@ -3,7 +3,7 @@
 #include "utils/logger.h"
 #include "utils/colors.h"
 #include "core/blockchain.h"
-#include "core/block.h" // FIXED: Added .h
+#include "core/block.h"
 #include "core/transaction.h"
 #include "core/mempool.h"
 #include "security/encryption.h"
@@ -28,13 +28,15 @@ static char g_cli_private_key_pem[4096] = {0};
 static char g_cli_public_key_pem[4096] = {0};
 static char g_cli_public_key_hash[SHA256_HEX_LEN + 1] = {0};
 
+// This static key is used for decrypting medical records in the CLI.
+// For a real blockchain, symmetric keys would be exchanged/encrypted via asymmetric cryptography.
 static uint8_t g_cli_decryption_key[AES_256_KEY_SIZE] = {
     0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
     0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11,
     0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99
 };
-static int g_cli_decryption_key_initialized = 0;
+static int g_cli_decryption_key_initialized = 0; // Flag to indicate if the key is considered 'ready'
 
 static void to_lowercase(char* str);
 static void get_string_input(const char* prompt, char* buffer, size_t buffer_size);
@@ -97,6 +99,7 @@ int cli_run() {
         return EXIT_FAILURE;
     }
 
+    // Mark the global CLI decryption key as initialized for use in block_print/transaction_print
     g_cli_decryption_key_initialized = 1;
 
     if (disk_storage_ensure_dir(DEFAULT_DATA_DIR) != 0) {
@@ -339,12 +342,13 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
 
     printf(ANSI_COLOR_CYAN "Adding a new record transaction...\n" ANSI_COLOR_RESET);
 
-    uint8_t transaction_aes_key[AES_256_KEY_SIZE];
-    if (encryption_generate_random_bytes(transaction_aes_key, AES_256_KEY_SIZE) != 0) {
-        logger_log(LOG_LEVEL_ERROR, "Failed to generate random AES key for transaction data.");
-        printf(ANSI_COLOR_RED "Failed to generate random AES key for transaction.\n" ANSI_COLOR_RESET);
-        return;
-    }
+    // --- FIX START: Use the global g_cli_decryption_key for encryption ---
+    // Instead of generating a new random key for each transaction,
+    // we use the CLI's predefined "decryption" key for encryption.
+    // This allows `print-chain --decrypt` to actually decrypt the data
+    // using the same globally known key.
+    const uint8_t* encryption_key_for_tx = g_cli_decryption_key;
+    // --- FIX END ---
 
     if (encryption_generate_random_bytes(iv, AES_GCM_IV_SIZE) != 0) {
         logger_log(LOG_LEVEL_ERROR, "Failed to generate IV for transaction.");
@@ -355,7 +359,7 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
     encrypted_data_len = encryption_encrypt_aes_gcm(
         (const uint8_t*)medical_data_input,
         (int)medical_data_len,
-        transaction_aes_key,
+        encryption_key_for_tx, // Use the global key here for encryption
         iv,
         &encrypted_data_buffer,
         tag
@@ -412,7 +416,7 @@ static void handle_add_transaction_interactive(Blockchain* bc) {
             logger_log(LOG_LEVEL_INFO, "Transaction added to mempool. Mine a block to include it!");
             printf(ANSI_COLOR_GREEN "Transaction (ID: %.10s...) added to mempool. " ANSI_COLOR_RESET "Remember to " ANSI_COLOR_YELLOW "'mine-block'" ANSI_COLOR_RESET " to include it in the chain.\n", tx->transaction_id);
         }
-        free(encrypted_data_buffer);
+        free(encrypted_data_buffer); // Free the encrypted data buffer as it's copied into the transaction
     } else {
         logger_log(LOG_LEVEL_ERROR, "Failed to create base transaction object.");
         printf(ANSI_COLOR_RED "Failed to create base transaction object.\n" ANSI_COLOR_RESET);
@@ -808,3 +812,4 @@ static void handle_broadcast_transaction_interactive(Blockchain* bc) {
 
     free(serialized_tx);
 }
+

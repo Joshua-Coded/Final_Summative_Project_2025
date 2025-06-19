@@ -568,3 +568,234 @@
 [2025-06-19 13:34:34] [INFO] All peer connections closed.
 [2025-06-19 13:34:34] [INFO] Shutting down mempool...
 [2025-06-19 13:34:34] [INFO] Mempool shutdown complete.
+[2025-06-19 13:35:56] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:35:56] [INFO] Network module initialized.
+[2025-06-19 13:35:56] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:35:56] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:35:56] [INFO] Public key hash derived successfully.
+[2025-06-19 13:35:56] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:36:06] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:36:06] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:36:06] [INFO] Block #0 mined successfully! Nonce: 401, Hash: 0039bbfda2010b7c08a51bf8ae512a1cf28336b20926c5ed5dcd8d6f9d030194
+[2025-06-19 13:36:06] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:36:06] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:36:06] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:36:43] [INFO] Hash signed successfully. Signature length: 71 bytes (raw), 142 bytes (hex)
+[2025-06-19 13:36:43] [INFO] Transaction df436171272a2b091c7535a5a82f5e0478983f86ec4f97476120a1a44e223b9d signed.
+[2025-06-19 13:36:43] [INFO] Sample transaction created and signed with ID: df436171272a2b091c7535a5a82f5e0478983f86ec4f97476120a1a44e223b9d
+[2025-06-19 13:36:43] [INFO] Transaction df436171272a2b091c7535a5a82f5e0478983f86ec4f97476120a1a44e223b9d added to mempool. Current size: 1
+[2025-06-19 13:36:43] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 13:36:50] [INFO] Attempting to mine new block #1. Pulled 1 transactions from global mempool.
+[2025-06-19 13:36:50] [INFO] Attempting to mine new block #1 with 1 transactions (now in block struct)...
+[2025-06-19 13:36:50] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:36:50] [INFO] Block #1 mined successfully! Nonce: 0, Hash: 0002c32d5d9f87215414742670c67ebc9f839e804b5e1281a04f51562c4cb76a
+[2025-06-19 13:36:50] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 13:36:50] [INFO] Global mempool cleared after mining block #1.
+[2025-06-19 13:36:50] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 13:36:50] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 13:36:50] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:36:50] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:44:27] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-19 13:44:27] [INFO] Listener thread started on port 8080.
+[2025-06-19 13:44:27] [INFO] Network listener started on port 8080, Peer FD: 0
+[2025-06-19 13:44:27] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-19 13:45:17] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:45:17] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:45:17] [INFO] Block #0 mined successfully! Nonce: 88, Hash: 006718f55838dc31a0aa351e999be1fd8bde2f9f62b84e7fb67755135307435d
+[2025-06-19 13:45:17] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:45:17] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:45:17] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:45:37] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-19 13:45:37] [INFO] Peer added: 127.0.0.1:50841 (FD: 5). Total peers: 1
+[2025-06-19 13:45:37] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-19 13:45:37] [INFO] Listener thread: Accepted new connection from 127.0.0.1:50841. FD: 5
+[2025-06-19 13:45:37] [INFO] Connection initiated to peer 127.0.0.1:8080 (FD: 0).
+[2025-06-19 13:46:08] [INFO] Hash signed successfully.
+[2025-06-19 13:46:08] [INFO] Transaction 2325bd70bc83950ceb5d52acccdf34491d6ac4aab945e85581b5d06b6bafba44 signed.
+[2025-06-19 13:46:08] [INFO] Sample transaction created and signed with ID: 2325bd70bc83950ceb5d52acccdf34491d6ac4aab945e85581b5d06b6bafba44
+[2025-06-19 13:46:08] [ERROR] Failed to read key from PEM string. Check format/type.
+[2025-06-19 13:46:08] [ERROR] key_from_pem_string OpenSSL Error: error:0480006C:PEM routines::no start line
+[2025-06-19 13:46:08] [ERROR] Failed to load public key from PEM string for verification.
+[2025-06-19 13:46:08] [WARN] Signature verification failed for transaction 2325bd70bc83950ceb5d52acccdf34491d6ac4aab945e85581b5d06b6bafba44.
+[2025-06-19 13:46:08] [ERROR] Transaction 2325bd70bc83950ceb5d52acccdf34491d6ac4aab945e85581b5d06b6bafba44: Signature verification failed.
+[2025-06-19 13:46:08] [WARN] Attempted to add an invalid transaction to mempool. ID: 2325bd70bc83950ceb5d52acccdf34491d6ac4aab945e85581b5d06b6bafba44
+[2025-06-19 13:46:08] [ERROR] Failed to add transaction to mempool (mempool full or duplicate).
+[2025-06-19 13:46:08] [INFO] Peer FD 5 disconnected gracefully.
+[2025-06-19 13:46:08] [INFO] Peer removed: 127.0.0.1:50841 (FD: 5).
+[2025-06-19 13:46:08] [INFO] Listener thread: Cleared FD 5 from master_fds (disconnected/error).
+[2025-06-19 13:47:27] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:47:27] [INFO] Network module initialized.
+[2025-06-19 13:47:27] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:47:27] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:47:27] [INFO] Public key hash derived successfully.
+[2025-06-19 13:47:27] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:47:35] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:47:35] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:47:35] [INFO] Block #0 mined successfully! Nonce: 73, Hash: 005910e735d5c5dea4364777b61d042b54d706eea81eaefa5aec4efa5bb41da3
+[2025-06-19 13:47:35] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:47:35] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:47:35] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:47:53] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-19 13:47:53] [INFO] Peer added: 127.0.0.1:50886 (FD: 5). Total peers: 1
+[2025-06-19 13:47:53] [INFO] Successfully connected to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-19 13:47:53] [INFO] Listener thread: Accepted new connection from 127.0.0.1:50886. FD: 5
+[2025-06-19 13:47:53] [INFO] Connected to peer 127.0.0.1:8080, Peer FD: 0
+[2025-06-19 13:48:14] [INFO] Log level set to debug.
+[2025-06-19 13:48:34] [DEBUG] Transaction created for type: TX_NEW_RECORD
+[2025-06-19 13:48:34] [DEBUG] New record data set. Encrypted data length: 155
+[2025-06-19 13:48:34] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 13:48:34] [INFO] Hash signed successfully. Signature length: 71 bytes (raw), 142 bytes (hex)
+[2025-06-19 13:48:34] [INFO] Transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e signed.
+[2025-06-19 13:48:34] [INFO] Sample transaction created and signed with ID: 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e
+[2025-06-19 13:48:34] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 13:48:34] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 13:48:34] [DEBUG] ECDSA signature is VALID.
+[2025-06-19 13:48:34] [DEBUG] Signature verified successfully for transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e.
+[2025-06-19 13:48:34] [DEBUG] Transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e is valid.
+[2025-06-19 13:48:34] [DEBUG] Data added to linked list. Current size: 1
+[2025-06-19 13:48:34] [INFO] Transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e added to mempool. Current size: 1
+[2025-06-19 13:48:34] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 13:49:04] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 13:49:04] [INFO]   Tx 1: ID: 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e, Type: 0
+[2025-06-19 13:49:04] [INFO] ------------------------------------------
+[2025-06-19 13:49:31] [DEBUG] Sent 4643 bytes to FD 4.
+[2025-06-19 13:49:31] [INFO] Listener thread: Received message from FD 5: ""
+[2025-06-19 13:49:31] [DEBUG] Broadcasted 4643 bytes (Type: 2) to peer FD 4.
+[2025-06-19 13:49:31] [INFO] Listener thread: Received message from FD 5: ""
+[2025-06-19 13:49:31] [INFO] Broadcasted data (Type: 2, Len: 4639) to 1 peers.
+[2025-06-19 13:49:31] [INFO] Listener thread: Received message from FD 5: ""
+[2025-06-19 13:49:31] [ERROR] Failed to broadcast transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e.
+[2025-06-19 13:49:31] [INFO] Listener thread: Received message from FD 5: ""
+[2025-06-19 13:49:31] [INFO] Listener thread: Received message from FD 5: ""
+[2025-06-19 13:49:55] [DEBUG] DEBUG: Entering blockchain_mine_new_block. Current pending transactions (from Blockchain struct): 0
+[2025-06-19 13:49:55] [DEBUG] Block #1 created.
+[2025-06-19 13:49:55] [DEBUG] Head element removed from linked list. Current size: 0
+[2025-06-19 13:49:55] [DEBUG] Retrieved 1 transactions from mempool for block. Remaining: 0
+[2025-06-19 13:49:55] [INFO] Attempting to mine new block #1. Pulled 1 transactions from global mempool.
+[2025-06-19 13:49:55] [DEBUG] Transaction 98cb10afa413eee2b941f7450b38c453277d6e0ffd8011d0f95cc674b3f0ad2e added to Block #1.
+[2025-06-19 13:49:55] [INFO] Attempting to mine new block #1 with 1 transactions (now in block struct)...
+[2025-06-19 13:49:55] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:49:55] [INFO] Block #1 mined successfully! Nonce: 61, Hash: 0069087076159eb47b5f1ef7cd2bf72a47199e1ac5a518e03885774637349b32
+[2025-06-19 13:49:55] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 13:49:55] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 13:49:55] [DEBUG] Mempool contents cleared.
+[2025-06-19 13:49:55] [INFO] Global mempool cleared after mining block #1.
+[2025-06-19 13:49:55] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 13:49:55] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 13:49:55] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 13:49:55] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 13:49:58] [INFO] Mempool is empty, cannot broadcast transaction.
+[2025-06-19 13:52:20] [INFO] Exiting CLI.
+[2025-06-19 13:52:20] [DEBUG] Destroying Block #0.
+[2025-06-19 13:52:20] [DEBUG] Block destroyed.
+[2025-06-19 13:52:20] [DEBUG] Destroying Block #1.
+[2025-06-19 13:52:20] [DEBUG] Freeing encrypted data for TX_NEW_RECORD.
+[2025-06-19 13:52:20] [DEBUG] Transaction structure destroyed.
+[2025-06-19 13:52:20] [DEBUG] Block destroyed.
+[2025-06-19 13:52:20] [INFO] Shutting down network module...
+[2025-06-19 13:52:20] [INFO] Listener thread was not running.
+[2025-06-19 13:52:20] [INFO] All peer connections closed.
+[2025-06-19 13:52:20] [INFO] Peer FD 5 disconnected gracefully.
+[2025-06-19 13:52:20] [INFO] Shutting down mempool...
+[2025-06-19 13:52:20] [INFO] Peer removed: 127.0.0.1:50886 (FD: 5).
+[2025-06-19 13:52:20] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 13:52:20] [INFO] Listener thread: Cleared FD 5 from master_fds (disconnected/error).
+[2025-06-19 13:52:20] [DEBUG] Mempool contents cleared.
+[2025-06-19 13:52:20] [DEBUG] Linked list structure destroyed.
+[2025-06-19 13:52:20] [INFO] Mempool shutdown complete.
+[2025-06-19 13:58:18] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:58:18] [INFO] Network module initialized.
+[2025-06-19 13:58:18] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:58:18] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:58:18] [INFO] Public key hash derived successfully.
+[2025-06-19 13:58:18] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:58:25] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 13:58:25] [INFO] Network module initialized.
+[2025-06-19 13:58:25] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 13:58:25] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 13:58:25] [INFO] Public key hash derived successfully.
+[2025-06-19 13:58:25] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 13:58:41] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:58:41] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:58:41] [INFO] Block #0 mined successfully! Nonce: 304, Hash: 0063f04a2a66952788dcb758ec94d9f0e611b29f09c9ba26a8f44cceac95931a
+[2025-06-19 13:58:41] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:58:41] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:58:41] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:58:49] [INFO] Listener thread successfully launched for port 8080.
+[2025-06-19 13:58:49] [INFO] Listener thread started on port 8080.
+[2025-06-19 13:58:49] [INFO] Network listener started on port 8080, Peer FD: 0
+[2025-06-19 13:58:49] [INFO] Listener thread: Network listener active on port 8080. Waiting for connections...
+[2025-06-19 13:59:15] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 13:59:15] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 13:59:15] [INFO] Block #0 mined successfully! Nonce: 457, Hash: 007e28a37895678c5fcd7132d7ce62a05012d97d2e9ba973b2dbcec25a16329c
+[2025-06-19 13:59:15] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 13:59:15] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 13:59:15] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 13:59:34] [INFO] Log level set to debug.
+[2025-06-19 13:59:49] [INFO] Peer added: 127.0.0.1:8080 (FD: 4). Total peers: 1
+[2025-06-19 13:59:49] [INFO] Peer added: 127.0.0.1:51097 (FD: 5). Total peers: 1
+[2025-06-19 13:59:49] [INFO] Successfully initiated connection to peer 127.0.0.1:8080 (FD: 4).
+[2025-06-19 13:59:49] [INFO] Listener thread: Accepted new connection from 127.0.0.1:51097. FD: 5
+[2025-06-19 13:59:49] [INFO] Connected to peer 127.0.0.1:8080, Peer FD: 0
+[2025-06-19 14:00:21] [DEBUG] Transaction created for type: TX_NEW_RECORD
+[2025-06-19 14:00:21] [DEBUG] New record data set. Encrypted data length: 155
+[2025-06-19 14:00:21] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:00:21] [INFO] Hash signed successfully. Signature length: 70 bytes (raw), 140 bytes (hex)
+[2025-06-19 14:00:21] [INFO] Transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 signed.
+[2025-06-19 14:00:21] [INFO] Sample transaction created and signed with ID: 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233
+[2025-06-19 14:00:21] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:00:21] [DEBUG] Transaction hash calculated for type TX_NEW_RECORD.
+[2025-06-19 14:00:21] [DEBUG] ECDSA signature is VALID.
+[2025-06-19 14:00:21] [DEBUG] Signature verified successfully for transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233.
+[2025-06-19 14:00:21] [DEBUG] Transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 is valid.
+[2025-06-19 14:00:21] [DEBUG] Data added to linked list. Current size: 1
+[2025-06-19 14:00:21] [INFO] Transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 added to mempool. Current size: 1
+[2025-06-19 14:00:21] [INFO] Transaction added to mempool. Mine a block to include it!
+[2025-06-19 14:00:34] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 14:00:34] [INFO]   Tx 1: ID: 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233, Type: 0
+[2025-06-19 14:00:34] [INFO] ------------------------------------------
+[2025-06-19 14:00:54] [DEBUG] Successfully sent 4647 bytes (Type: 2, Payload Len: 4639) to FD 4.
+[2025-06-19 14:00:54] [INFO] Received TRANSACTION message.
+[2025-06-19 14:00:54] [DEBUG] Broadcasted 4647 bytes (Type: 2, Payload Len: 4639) to peer FD 4.
+[2025-06-19 14:00:54] [INFO] Broadcasted data (Type: 2, Data Len: 4639) to 1 peers.
+[2025-06-19 14:00:54] [ERROR] Failed to broadcast transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233.
+[2025-06-19 14:00:54] [INFO] Transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 added to mempool. Current size: 1
+[2025-06-19 14:00:54] [INFO] Received and added transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 to mempool.
+[2025-06-19 14:01:22] [INFO] --- Mempool Contents (1 transactions) ---
+[2025-06-19 14:01:22] [INFO]   Tx 1: ID: 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233, Type: 0
+[2025-06-19 14:01:22] [INFO] ------------------------------------------
+[2025-06-19 14:01:54] [DEBUG] DEBUG: Entering blockchain_mine_new_block. Current pending transactions (from Blockchain struct): 0
+[2025-06-19 14:01:54] [DEBUG] Block #1 created.
+[2025-06-19 14:01:54] [DEBUG] Head element removed from linked list. Current size: 0
+[2025-06-19 14:01:54] [DEBUG] Retrieved 1 transactions from mempool for block. Remaining: 0
+[2025-06-19 14:01:54] [INFO] Attempting to mine new block #1. Pulled 1 transactions from global mempool.
+[2025-06-19 14:01:54] [DEBUG] Transaction 94e461e7e6c0f8e2dc8d107568f62c096fdf6060718a0661089d06db7b4e3233 added to Block #1.
+[2025-06-19 14:01:54] [INFO] Attempting to mine new block #1 with 1 transactions (now in block struct)...
+[2025-06-19 14:01:54] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 14:01:54] [INFO] Block #1 mined successfully! Nonce: 223, Hash: 00ea5d10a66473767fb3dc754645a6fcd05f98b082d7bfd4dbbc0dd55d4b35ef
+[2025-06-19 14:01:54] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 14:01:54] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 14:01:54] [DEBUG] Mempool contents cleared.
+[2025-06-19 14:01:54] [INFO] Global mempool cleared after mining block #1.
+[2025-06-19 14:01:54] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 14:01:54] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 14:01:54] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 14:01:54] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 14:03:37] [INFO] Exiting CLI.
+[2025-06-19 14:03:37] [DEBUG] Destroying Block #0.
+[2025-06-19 14:03:37] [DEBUG] Block destroyed.
+[2025-06-19 14:03:37] [DEBUG] Destroying Block #1.
+[2025-06-19 14:03:37] [DEBUG] Freeing encrypted data for TX_NEW_RECORD.
+[2025-06-19 14:03:37] [DEBUG] Transaction structure destroyed.
+[2025-06-19 14:03:37] [DEBUG] Block destroyed.
+[2025-06-19 14:03:37] [INFO] Shutting down network module...
+[2025-06-19 14:03:37] [INFO] Listener thread was not running.
+[2025-06-19 14:03:37] [INFO] All peer connections closed.
+[2025-06-19 14:03:37] [INFO] Shutting down mempool...
+[2025-06-19 14:03:37] [INFO] Peer FD 5 disconnected gracefully during read.
+[2025-06-19 14:03:37] [DEBUG] Clearing mempool with 0 transactions.
+[2025-06-19 14:03:37] [DEBUG] Mempool contents cleared.
+[2025-06-19 14:03:37] [INFO] Peer removed: 127.0.0.1:51097 (FD: 5).
+[2025-06-19 14:03:37] [DEBUG] Linked list structure destroyed.
+[2025-06-19 14:03:37] [INFO] Mempool shutdown complete.
+[2025-06-19 14:03:37] [INFO] Listener thread: Peer FD 5 disconnected gracefully.
