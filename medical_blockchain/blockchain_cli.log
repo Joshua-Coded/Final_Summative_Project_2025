@@ -133,3 +133,107 @@
 [2025-06-17 12:36:57] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
 [2025-06-17 12:37:16] [INFO] Transaction 07594be3ae75f0034d71a8dc4b102565c7bf9138921d2b78130fbd687830d60a signed (using dummy signature).
 [2025-06-17 12:37:16] [INFO] Sample transaction created and signed.
+[2025-06-18 11:26:37] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-18 11:26:37] [INFO] Network module initialized.
+[2025-06-18 11:26:50] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-18 11:26:50] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-18 11:26:50] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-18 11:27:04] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 1)...
+[2025-06-18 11:27:04] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-18 11:27:04] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-18 11:27:14] [INFO] Transaction 8354f0171bc4f347156228cc5162868b7ad3dc693303d4db081d8c8c3f3ade0b signed (using dummy signature).
+[2025-06-18 11:27:14] [INFO] Sample transaction created and signed.
+[2025-06-18 11:27:28] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-18 11:27:28] [INFO] Network module initialized.
+[2025-06-18 11:27:34] [WARN] Unknown command: 'mine-blockchain'. Type 'help' for options.
+[2025-06-18 11:27:56] [ERROR] Blockchain not created/loaded. Cannot mine block.
+[2025-06-18 11:28:06] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-18 11:28:06] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-18 11:28:06] [INFO] Block #0 mined successfully! Nonce: 21, Hash: 0003cc9ec9002fdc2505705c870b17c637cbd3fd69f10386c6b1693aec56a4dc
+[2025-06-18 11:28:06] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-18 11:28:06] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-18 11:28:06] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-18 11:28:22] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 1)...
+[2025-06-18 11:28:22] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-18 11:28:22] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-18 11:28:29] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-18 11:28:29] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-18 11:28:29] [INFO] Block #1 mined successfully! Nonce: 23, Hash: 008e06b4602026277ba33b177074ae1ef3f36b76fd01cb65be7ce66f06298f12
+[2025-06-18 11:28:29] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-18 11:28:29] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-18 11:28:29] [INFO] New block mined successfully!
+[2025-06-18 11:28:51] [INFO] Blockchain is valid.
+[2025-06-18 11:33:57] [INFO] Exiting CLI.
+[2025-06-18 11:33:57] [INFO] Shutting down network module...
+[2025-06-18 11:33:57] [INFO] Listener thread was not running.
+[2025-06-18 11:33:57] [INFO] All peer connections closed.
+[2025-06-18 11:40:21] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-18 11:40:21] [INFO] Network module initialized.
+[2025-06-18 11:40:31] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-18 11:40:31] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-18 11:40:31] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-18 11:40:37] [INFO] Transaction 45904311c4a97aab7393da8b657eb5559bc23d09ad0d8b20a2263193b1f4f304 signed (using dummy signature).
+[2025-06-18 11:40:37] [INFO] Sample transaction created and signed.
+[2025-06-18 11:40:37] [INFO] Transaction added to pending list. Total pending: 1.
+[2025-06-18 11:40:37] [INFO] Transaction added to pending list. Mine a block to include it!
+[2025-06-18 11:40:51] [INFO] Attempting to mine new block #1 with 1 transactions...
+[2025-06-18 11:40:51] [INFO] Mining Block #1 with difficulty 0 (target prefix: '').
+[2025-06-18 11:40:51] [INFO] Block #1 mined successfully! Nonce: 0, Hash: 732c93d8ab937465222807c05c00053a33141f2eebba097b0da674395cf9222a
+[2025-06-18 11:40:51] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-18 11:40:51] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-18 11:40:51] [INFO] New block mined successfully!
+[2025-06-18 11:42:27] [INFO] Exiting CLI.
+[2025-06-18 11:42:27] [INFO] Shutting down network module...
+[2025-06-18 11:42:27] [INFO] Listener thread was not running.
+[2025-06-18 11:42:27] [INFO] All peer connections closed.
+[2025-06-18 11:53:26] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-18 11:53:26] [INFO] Network module initialized.
+[2025-06-18 11:53:35] [INFO] Loading blockchain from data/blockchain/blockchain.dat...
+[2025-06-18 11:53:35] [INFO] Blockchain loaded successfully from data/blockchain/blockchain.dat (length: 1).
+[2025-06-18 11:53:35] [INFO] Blockchain loaded successfully from 'data/blockchain/blockchain.dat' (length: 1).
+[2025-06-18 11:53:41] [ERROR] Failed to read PrivateKey from private_key_pem (expected PEM format).
+[2025-06-18 11:53:41] [ERROR] Failed to cryptographically sign transaction hash.
+[2025-06-18 11:53:41] [ERROR] Failed to sign sample transaction.
+[2025-06-19 09:55:05] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-19 09:55:05] [INFO] Network module initialized.
+[2025-06-19 09:55:05] [INFO] Auto-generating initial ECDSA key pair for CLI session...
+[2025-06-19 09:55:05] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 09:55:05] [INFO] Public key hash derived successfully.
+[2025-06-19 09:55:05] [INFO] Initial ECDSA key pair generated successfully.
+[2025-06-19 09:56:26] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-19 09:56:26] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-19 09:56:26] [INFO] Block #0 mined successfully! Nonce: 852, Hash: 004b3c459c5fabf1f9211cac0c3eb788000872e3bbdda2c2595b3f24204ef4aa
+[2025-06-19 09:56:26] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-19 09:56:26] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-19 09:56:26] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-19 09:57:09] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 1)...
+[2025-06-19 09:57:09] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 09:57:09] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 09:57:43] [ERROR] Invalid input or buffer too small for hasher_bytes_to_hex_buf.
+[2025-06-19 09:57:43] [ERROR] Failed to fully convert signature to hex string (buffer too small?).
+[2025-06-19 09:57:43] [ERROR] Failed to cryptographically sign transaction hash.
+[2025-06-19 09:57:43] [ERROR] Failed to sign sample transaction.
+[2025-06-19 09:59:29] [ERROR] Invalid input or buffer too small for hasher_bytes_to_hex_buf.
+[2025-06-19 09:59:29] [ERROR] Failed to fully convert signature to hex string (buffer too small?).
+[2025-06-19 09:59:29] [ERROR] Failed to cryptographically sign transaction hash.
+[2025-06-19 09:59:29] [ERROR] Failed to sign sample transaction.
+[2025-06-19 10:02:11] [INFO] Attempting to mine new block #1 with 0 transactions...
+[2025-06-19 10:02:11] [INFO] Mining Block #1 with difficulty 2 (target prefix: '00').
+[2025-06-19 10:02:11] [INFO] Block #1 mined successfully! Nonce: 690, Hash: 00e044bd456efc4ec5e605b256feca62ca6d09d61be80a4288a827a572ee70b2
+[2025-06-19 10:02:11] [INFO] Block #1 added to the blockchain. Current length: 2.
+[2025-06-19 10:02:11] [INFO] Pending transactions cleared after mining block #1.
+[2025-06-19 10:02:11] [INFO] New block mined successfully! Current blockchain height: 2
+[2025-06-19 10:02:11] [INFO] Saving blockchain to data/blockchain/blockchain.dat (length: 2)...
+[2025-06-19 10:02:11] [INFO] Blockchain saved successfully to data/blockchain/blockchain.dat.
+[2025-06-19 10:02:11] [INFO] Blockchain saved successfully to 'data/blockchain/blockchain.dat'.
+[2025-06-19 10:02:19] [INFO] Key pair generated and PEM strings copied.
+[2025-06-19 10:02:19] [INFO] Public key hash derived successfully.
+[2025-06-19 10:02:19] [INFO] New ECDSA key pair generated and set for CLI session. Hash: 237694075a21991db9779197891fd13b9290cb3e8e4bb7b5ef45d2373c79a599
+[2025-06-19 10:02:41] [INFO] Mempool is empty, nothing to print.
+[2025-06-19 10:03:00] [INFO] Attempted to broadcast, but mempool is empty.
+[2025-06-19 10:03:09] [INFO] Exiting CLI.
+[2025-06-19 10:03:09] [INFO] Shutting down network module...
+[2025-06-19 10:03:09] [INFO] Listener thread was not running.
+[2025-06-19 10:03:09] [INFO] All peer connections closed.
+[2025-06-19 10:03:09] [INFO] Shutting down mempool...
+[2025-06-19 10:03:09] [INFO] Mempool shutdown complete.

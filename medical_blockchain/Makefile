@@ -13,66 +13,65 @@ BIN_DIR = bin
 TEST_DIR = tests
 DOC_DIR = docs
 DATA_DIR = data
-CONFIG_DIR = config # This variable is used for copying config files, not directly for include paths
+CONFIG_DIR = config
 
 # Compiler and flags
-CC = clang # Explicitly use clang, common on macOS. Or keep gcc if it maps to clang.
+CC = clang # Explicitly use clang, common on macOS. Or keep gcc if it maps to gcc.
 
 # Common CFLAGS for all builds
-CFLAGS_COMMON = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result
-CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fPIC # -fPIC for shared libraries if needed, good for PIE
+# -Wno-deprecated-declarations added here to suppress OpenSSL deprecation warnings
+CFLAGS_BASE = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result -Wno-deprecated-declarations
+CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fPIC
 
-# Build-specific CFLAGS
-CFLAGS_DEBUG = $(CFLAGS_COMMON) -g -O0 -DDEBUG
-CFLAGS_RELEASE = $(CFLAGS_COMMON) -O3 -DNDEBUG -flto
+# Include paths for source files and external libraries
+# IMPORTANT: Ensure no trailing spaces on lines with backslashes!
+CFLAGS_INCLUDE = -I$(SRC_DIR) \
+-I$(SRC_DIR)/core \
+-I$(SRC_DIR)/crypto \
+-I$(SRC_DIR)/mining \
+-I$(SRC_DIR)/security \
+-I$(SRC_DIR)/medical \
+-I$(SRC_DIR)/contracts \
+-I$(SRC_DIR)/storage \
+-I$(SRC_DIR)/network \
+-I$(SRC_DIR)/utils \
+-I$(SRC_DIR)/cli \
+-I$(SRC_DIR)/config \
+-I$(CJSON_INC_PATH) \
+$(shell pkg-config --cflags libcrypto)
+
+# Build-specific CFLAGS combinations
+CFLAGS_DEBUG = $(CFLAGS_BASE) $(CFLAGS_SECURITY) -g -O0 -DDEBUG $(CFLAGS_INCLUDE)
+CFLAGS_RELEASE = $(CFLAGS_BASE) $(CFLAGS_SECURITY) -O3 -DNDEBUG -flto $(CFLAGS_INCLUDE)
+
+# Linker flags for security hardening
+LDFLAGS_SECURITY = -fPIE
 
 # --------------------------------------------------------------------------
-# --- CJSON CONFIGURATION CHANGES ---
+# --- CJSON & OPENSSL CONFIGURATION ---
 # --------------------------------------------------------------------------
 
 # Define where your cJSON library headers are located
 # Adjust this path based on your cJSON installation.
-# Common locations: /usr/local/include, /usr/include, or a path relative to your project (e.g., lib/cjson)
 CJSON_INC_PATH = /usr/local/include
 
 # CJSON Library path (where libcjson.a or libcjson.so resides)
 # Adjust this path based on your cJSON installation.
-# Common locations: /usr/local/lib, /usr/lib
 CJSON_LIB_PATH = /usr/local/lib
 
-# Include paths for all source files.
-# By including -I$(SRC_DIR), all includes in C files should be relative to 'src/'.
-# E.g., #include "core/blockchain.h", #include "config/config.h"
-# IMPORTANT: Explicitly adding all subdirectories of SRC_DIR to the include path
-# This ensures that headers like "utils/colors.h" are found correctly,
-# even if included from a different subdirectory like "core/block.c".
-CFLAGS_INCLUDE = -I$(SRC_DIR) \
-                 -I$(SRC_DIR)/core \
-                 -I$(SRC_DIR)/crypto \
-                 -I$(SRC_DIR)/mining \
-                 -I$(SRC_DIR)/security \
-                 -I$(SRC_DIR)/medical \
-                 -I$(SRC_DIR)/contracts \
-                 -I$(SRC_DIR)/storage \
-                 -I$(SRC_DIR)/network \
-                 -I$(SRC_DIR)/utils \
-                 -I$(SRC_DIR)/cli \
-                 -I$(SRC_DIR)/config \
-                 -I$(CJSON_INC_PATH) \
-                 $(shell pkg-config --cflags libcrypto)
+# Libraries common to the main application and tests
+LIBS_COMMON = -L$(CJSON_LIB_PATH) -lcjson -lm -lpthread
 
 # Libraries specific to the main application (release/debug builds)
-LIBS_APP = $(shell pkg-config --libs libcrypto) -lm -lpthread -L$(CJSON_LIB_PATH) -lcjson
+# Use pkg-config for libcrypto for cross-platform compatibility
+LIBS_APP = $(LIBS_COMMON) $(shell pkg-config --libs libcrypto)
 
 # Libraries specific to the test build
-LIBS_TEST = -lcunit -L/usr/local/lib -L$(CJSON_LIB_PATH) -lcjson
+LIBS_TEST = $(LIBS_COMMON) $(shell pkg-config --libs libcrypto) -lcunit -L/usr/local/lib # Add libcrypto for tests too
 
 # --------------------------------------------------------------------------
-# --- END CJSON CONFIGURATION CHANGES ---
+# --- END CJSON & OPENSSL CONFIGURATION ---
 # --------------------------------------------------------------------------
-
-# Linker flags for security hardening
-LDFLAGS_SECURITY = -fPIE
 
 # Source files organized by module
 CORE_SOURCES = $(wildcard $(SRC_DIR)/core/*.c)
@@ -94,7 +93,7 @@ ALL_SOURCES = $(CORE_SOURCES) $(CRYPTO_SOURCES) $(MINING_SOURCES) \
               $(STORAGE_SOURCES) $(NETWORK_SOURCES) $(UTILS_SOURCES) \
               $(CLI_SOURCES) $(CONFIG_SOURCES) $(MAIN_SOURCE)
 
-# Object files
+# Object files (derived from source files)
 CORE_OBJECTS = $(patsubst $(SRC_DIR)/core/%.c,$(OBJ_DIR)/core/%.o,$(CORE_SOURCES))
 CRYPTO_OBJECTS = $(patsubst $(SRC_DIR)/crypto/%.c,$(OBJ_DIR)/crypto/%.o,$(CRYPTO_SOURCES))
 MINING_OBJECTS = $(patsubst $(SRC_DIR)/mining/%.c,$(OBJ_DIR)/mining/%.o,$(MINING_SOURCES))
@@ -128,15 +127,15 @@ all: release
 
 # Debug build
 .PHONY: debug
-debug: CFLAGS = $(CFLAGS_DEBUG) $(CFLAGS_SECURITY)
-debug: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
+debug: current_CFLAGS = $(CFLAGS_DEBUG)
+debug: current_LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
 debug: clean $(TARGET)
 	@echo "Debug build completed successfully"
 
 # Release build
 .PHONY: release
-release: CFLAGS = $(CFLAGS_RELEASE) $(CFLAGS_SECURITY)
-release: LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
+release: current_CFLAGS = $(CFLAGS_RELEASE)
+release: current_LDFLAGS = $(LDFLAGS_SECURITY) $(LIBS_APP)
 release: clean $(TARGET)
 	@echo "Release build completed successfully"
 	@strip $(TARGET)
@@ -151,23 +150,26 @@ $(BIN_DIR):
 # Build main executable
 $(TARGET): $(ALL_OBJECTS) | $(BIN_DIR)
 	@echo "Linking $(TARGET)..."
-	@$(CC) $(CFLAGS) $(ALL_OBJECTS) -o $@ $(LDFLAGS)
+	# Use 'current_CFLAGS' and 'current_LDFLAGS' set by the specific target (debug/release)
+	@$(CC) $(current_CFLAGS) $(ALL_OBJECTS) -o $@ $(current_LDFLAGS)
 	@echo "Build completed successfully!"
 
 # General rule to compile .c files into .o files
+# This rule now uses $(current_CFLAGS) which is defined by the debug/release targets
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling $<..."
-	@$(CC) $(CFLAGS) $(CFLAGS_INCLUDE) -c $< -o $@
+	@$(CC) $(current_CFLAGS) -c $< -o $@
 
 # Build test executable
 $(TEST_TARGET): $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) | $(BIN_DIR)
 	@echo "Linking test executable..."
-	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST)
+	# For tests, we use CFLAGS_DEBUG directly and ensure LIBS_TEST are passed
+	@$(CC) $(CFLAGS_DEBUG) $(TEST_OBJECTS) $(filter-out $(MAIN_OBJECT), $(ALL_OBJECTS)) -o $@ $(LDFLAGS_SECURITY) $(LIBS_TEST)
 
 # Compile test files
 $(OBJ_DIR)/test/%.o: $(TEST_DIR)/%.c | $(OBJ_DIR)
 	@echo "Compiling test $<..."
-	@$(CC) $(CFLAGS_DEBUG) $(CFLAGS_INCLUDE) -c $< -o $@
+	@$(CC) $(CFLAGS_DEBUG) -c $< -o $@
 
 # Run tests
 .PHONY: test
