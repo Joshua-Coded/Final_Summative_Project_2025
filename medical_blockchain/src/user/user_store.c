@@ -33,6 +33,7 @@ static int resize_user_array() {
 
 /**
  * @brief Initializes the user store, loading users from disk.
+ * If the file does not exist, it starts with an empty store.
  * @param file_path The path to the user data file.
  * @return 0 on success, -1 on failure.
  */
@@ -44,20 +45,11 @@ int user_store_init(const char* file_path) {
     strncpy(g_user_data_file_path, file_path, sizeof(g_user_data_file_path) - 1);
     g_user_data_file_path[sizeof(g_user_data_file_path) - 1] = '\0';
 
-    // Ensure the data directory exists
-    char data_dir[256];
-    snprintf(data_dir, sizeof(data_dir), "%s/users", DEFAULT_DATA_DIR);
-    // Assuming disk_storage_ensure_dir exists and works (from previous discussions)
-    // You might need to include disk_storage.h here if it's not already.
-    // For this module, we'll just check if the parent directory exists.
-    // For simplicity, we can assume DEFAULT_DATA_DIR exists, or add a check if needed.
-
     FILE* file = fopen(g_user_data_file_path, "r");
     if (file == NULL) {
         if (errno == ENOENT) {
             logger_log(LOG_LEVEL_INFO, "User data file '%s' not found. Starting with empty user store.", g_user_data_file_path);
             print_yellow("User data file not found. Starting with empty user store.\n");
-            // File doesn't exist, create an empty user array
             g_users_capacity = INITIAL_USER_CAPACITY;
             g_users = (User*)malloc(g_users_capacity * sizeof(User));
             if (g_users == NULL) {
@@ -73,28 +65,70 @@ int user_store_init(const char* file_path) {
         }
     }
 
-    // Read users from file
+    // Read users from file, using fgets for each field and a delimiter
     User temp_user;
-    int line_num = 0;
-    while (fscanf(file, "%s %s %s %s %s\n",
-                  temp_user.username,
-                  temp_user.hashed_password,
-                  temp_user.private_key_pem,
-                  temp_user.public_key_pem,
-                  temp_user.public_key_hash) == 5) { // Expecting 5 fields
+    char line_buffer[MAX_KEY_PEM_LEN + 10]; // Buffer to read lines, ensuring it's large enough for PEM
+    int user_fields_read = 0; // Track how many fields for current user
+    int line_num = 0; // Track line number for logging
+
+    while (fgets(line_buffer, sizeof(line_buffer), file) != NULL) {
         line_num++;
+        // Remove newline character if present
+        line_buffer[strcspn(line_buffer, "\n")] = 0;
+
+        if (strcmp(line_buffer, "---") == 0) { // End of user entry delimiter
+            if (user_fields_read == 6) { // Ensure all 6 fields (username, hashed_password, private_key, public_key, public_key_hash, role) were read for the current user
+                if (g_num_users == g_users_capacity) {
+                    if (resize_user_array() != 0) {
+                        fclose(file);
+                        return -1;
+                    }
+                }
+                g_users[g_num_users++] = temp_user; // Copy the user data
+            } else {
+                logger_log(LOG_LEVEL_WARN, "Corrupted user data file '%s': Incomplete user entry before delimiter at line %d. Skipping this entry.", g_user_data_file_path, line_num);
+                // Optionally, you might want to return -1 here for strict error handling,
+                // but skipping allows partial loading. For now, we continue to read the file.
+            }
+            user_fields_read = 0; // Reset for next user
+            continue; // Move to the next line in the file
+        }
+
+        // Copy data based on which field we expect next
+        switch (user_fields_read) {
+            case 0: strncpy(temp_user.username, line_buffer, sizeof(temp_user.username) - 1); temp_user.username[sizeof(temp_user.username) - 1] = '\0'; break;
+            case 1: strncpy(temp_user.hashed_password, line_buffer, sizeof(temp_user.hashed_password) - 1); temp_user.hashed_password[sizeof(temp_user.hashed_password) - 1] = '\0'; break;
+            case 2: strncpy(temp_user.private_key_pem, line_buffer, sizeof(temp_user.private_key_pem) - 1); temp_user.private_key_pem[sizeof(temp_user.private_key_pem) - 1] = '\0'; break;
+            case 3: strncpy(temp_user.public_key_pem, line_buffer, sizeof(temp_user.public_key_pem) - 1); temp_user.public_key_pem[sizeof(temp_user.public_key_pem) - 1] = '\0'; break;
+            case 4: strncpy(temp_user.public_key_hash, line_buffer, sizeof(temp_user.public_key_hash) - 1); temp_user.public_key_hash[sizeof(temp_user.public_key_hash) - 1] = '\0'; break;
+            case 5: strncpy(temp_user.role, line_buffer, sizeof(temp_user.role) - 1); temp_user.role[sizeof(temp_user.role) - 1] = '\0'; break;
+            default:
+                logger_log(LOG_LEVEL_WARN, "Corrupted user data file '%s': Too many fields or unexpected data at line %d. Stopping load.", g_user_data_file_path, line_num);
+                fclose(file);
+                return -1; // Error in format
+        }
+        user_fields_read++;
+    }
+
+    // After loop, check if the last entry was read completely (if file didn't end with a delimiter)
+    if (user_fields_read == 6) {
         if (g_num_users == g_users_capacity) {
             if (resize_user_array() != 0) {
                 fclose(file);
                 return -1;
             }
         }
-        g_users[g_num_users++] = temp_user; // Copy the user data
+        g_users[g_num_users++] = temp_user;
+    } else if (user_fields_read > 0) {
+        logger_log(LOG_LEVEL_WARN, "Corrupted user data file '%s': Incomplete final user entry. Some users might not be loaded.", g_user_data_file_path);
+        print_yellow("Warning: User data file might be corrupted. Some users might not be loaded.\n");
     }
 
+
     if (!feof(file)) {
-        logger_log(LOG_LEVEL_WARN, "Corrupted user data file '%s' or unexpected format at line %d. Some users might not be loaded.", g_user_data_file_path, line_num);
-        print_yellow("Warning: User data file might be corrupted. Some users might not be loaded.\n");
+        // This condition might still be true if fgets encountered an error other than EOF
+        logger_log(LOG_LEVEL_WARN, "Error reading user data file '%s' after last processed entry: %s", g_user_data_file_path, strerror(errno));
+        print_yellow("Warning: Error encountered while reading user data file.\n");
     }
 
     fclose(file);
@@ -104,7 +138,7 @@ int user_store_init(const char* file_path) {
 }
 
 /**
- * @brief Adds a new user to the store and saves to disk.
+ * @brief Adds a new user to the store and saves the updated store to disk.
  * @param user The User struct containing the new user's details.
  * @return 0 on success, -1 if username already exists or other failure.
  */
@@ -177,16 +211,15 @@ int user_store_save() {
     }
 
     for (size_t i = 0; i < g_num_users; ++i) {
-        // IMPORTANT: Ensure no spaces in username, hashed_password, or PEM keys when saving in this space-delimited format.
-        // For PEM keys, this is usually handled by base64 encoding. Newlines are problematic.
-        // For simplicity, this assumes these strings do not contain spaces or newlines.
-        // A more robust serialization would use fixed-size fields, length prefixes, or a more structured format like JSON.
-        fprintf(file, "%s %s %s %s %s\n",
-                g_users[i].username,
-                g_users[i].hashed_password,
-                g_users[i].private_key_pem,
-                g_users[i].public_key_pem,
-                g_users[i].public_key_hash);
+        // Write each field on a new line, explicitly separating them.
+        // This is robust for fields that might contain spaces or newlines (like PEM keys).
+        fprintf(file, "%s\n", g_users[i].username);
+        fprintf(file, "%s\n", g_users[i].hashed_password);
+        fprintf(file, "%s\n", g_users[i].private_key_pem);
+        fprintf(file, "%s\n", g_users[i].public_key_pem);
+        fprintf(file, "%s\n", g_users[i].public_key_hash);
+        fprintf(file, "%s\n", g_users[i].role);
+        fprintf(file, "---\n"); // Delimiter for user entries
     }
 
     fclose(file);
