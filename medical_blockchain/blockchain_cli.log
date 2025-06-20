@@ -926,3 +926,30 @@ Listener thread started on port 8080.
 [2025-06-19 14:17:14] [DEBUG] Mempool contents cleared.
 [2025-06-19 14:17:14] [DEBUG] Linked list structure destroyed.
 [2025-06-19 14:17:14] [INFO] Mempool shutdown complete.
+[2025-06-20 09:25:07] [INFO] Blockchain CLI started (interactive mode).
+[2025-06-20 09:25:07] [INFO] Network module initialized.
+[2025-06-20 09:25:07] [INFO] User data file 'data/blockchain/users/users.dat' not found. Starting with empty user store.
+[2025-06-20 09:25:33] [INFO] Mining Genesis Block (Block #0) with difficulty 2...
+[2025-06-20 09:25:33] [INFO] Mining Block #0 with difficulty 2 (target prefix: '00').
+[2025-06-20 09:25:33] [INFO] Block #0 mined successfully! Nonce: 118, Hash: 00a880f3c19dc6379a3af515948342e0439d7f1605a5b3ac8a452f2b7de164fb
+[2025-06-20 09:25:33] [INFO] Block #0 added to the blockchain. Current length: 1.
+[2025-06-20 09:25:33] [INFO] Blockchain created with genesis block (Difficulty: 2).
+[2025-06-20 09:25:33] [INFO] Blockchain created successfully with a genesis block.
+[2025-06-20 09:25:46] [WARN] Attempted add-transaction without login.
+[2025-06-20 09:26:01] [INFO] User 'joshua' not found in store.
+[2025-06-20 09:26:01] [WARN] Login failed for 'joshua': User not found.
+[2025-06-20 09:26:16] [INFO] Key pair generated and PEM strings copied.
+[2025-06-20 09:26:16] [INFO] Public key hash derived successfully.
+[2025-06-20 09:26:16] [INFO] User 'joshua' added to in-memory store. Total users: 1
+[2025-06-20 09:26:16] [ERROR] Failed to open user data file 'data/blockchain/users/users.dat' for writing: No such file or directory
+[2025-06-20 09:26:16] [ERROR] Failed to save user store after adding new user 'joshua'.
+[2025-06-20 09:27:21] [INFO] User 'joshua' not found in store.
+[2025-06-20 09:27:21] [WARN] Login failed for 'joshua': User not found.
+[2025-06-20 09:29:53] [INFO] Exiting CLI.
+[2025-06-20 09:29:53] [INFO] Shutting down mempool...
+[2025-06-20 09:29:53] [INFO] Mempool shutdown complete.
+[2025-06-20 09:29:53] [INFO] Shutting down network module...
+[2025-06-20 09:29:53] [INFO] Listener thread was not running.
+[2025-06-20 09:29:53] [INFO] All peer connections closed.
+[2025-06-20 09:29:53] [INFO] Shutting down user store.
+[2025-06-20 09:29:53] [INFO] User store memory freed.

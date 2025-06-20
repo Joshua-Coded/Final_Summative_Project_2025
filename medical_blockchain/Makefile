@@ -24,21 +24,22 @@ CFLAGS_BASE = -std=c99 -Wall -Wextra -Wpedantic -Werror -Wno-unused-result -Wno-
 CFLAGS_SECURITY = -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -fPIC
 
 # Include paths for source files and external libraries
-# IMPORTANT: Ensure no trailing spaces on lines with backslashes!
+# IMPORTANT: Ensure NO trailing spaces on lines with backslashes!
 CFLAGS_INCLUDE = -I$(SRC_DIR) \
--I$(SRC_DIR)/core \
--I$(SRC_DIR)/crypto \
--I$(SRC_DIR)/mining \
--I$(SRC_DIR)/security \
--I$(SRC_DIR)/medical \
--I$(SRC_DIR)/contracts \
--I$(SRC_DIR)/storage \
--I$(SRC_DIR)/network \
--I$(SRC_DIR)/utils \
--I$(SRC_DIR)/cli \
--I$(SRC_DIR)/config \
--I$(CJSON_INC_PATH) \
-$(shell pkg-config --cflags libcrypto)
+	-I$(SRC_DIR)/core \
+	-I$(SRC_DIR)/crypto \
+	-I$(SRC_DIR)/mining \
+	-I$(SRC_DIR)/security \
+	-I$(SRC_DIR)/medical \
+	-I$(SRC_DIR)/contracts \
+	-I$(SRC_DIR)/storage \
+	-I$(SRC_DIR)/network \
+	-I$(SRC_DIR)/utils \
+	-I$(SRC_DIR)/cli \
+	-I$(SRC_DIR)/config \
+	-I$(SRC_DIR)/user \
+	-I$(CJSON_INC_PATH) \
+	$(shell pkg-config --cflags libcrypto)
 
 # Build-specific CFLAGS combinations
 CFLAGS_DEBUG = $(CFLAGS_BASE) $(CFLAGS_SECURITY) -g -O0 -DDEBUG $(CFLAGS_INCLUDE)
@@ -85,13 +86,14 @@ NETWORK_SOURCES = $(wildcard $(SRC_DIR)/network/*.c)
 UTILS_SOURCES = $(wildcard $(SRC_DIR)/utils/*.c)
 CLI_SOURCES = $(wildcard $(SRC_DIR)/cli/*.c)
 CONFIG_SOURCES = $(wildcard $(SRC_DIR)/config/*.c)
+USER_SOURCES = $(wildcard $(SRC_DIR)/user/*.c) # NEW: User module sources
 
 MAIN_SOURCE = $(SRC_DIR)/main.c
 
 ALL_SOURCES = $(CORE_SOURCES) $(CRYPTO_SOURCES) $(MINING_SOURCES) \
-              $(SECURITY_SOURCES) $(MEDICAL_SOURCES) $(CONTRACTS_SOURCES) \
-              $(STORAGE_SOURCES) $(NETWORK_SOURCES) $(UTILS_SOURCES) \
-              $(CLI_SOURCES) $(CONFIG_SOURCES) $(MAIN_SOURCE)
+	$(SECURITY_SOURCES) $(MEDICAL_SOURCES) $(CONTRACTS_SOURCES) \
+	$(STORAGE_SOURCES) $(NETWORK_SOURCES) $(UTILS_SOURCES) \
+	$(CLI_SOURCES) $(CONFIG_SOURCES) $(USER_SOURCES) $(MAIN_SOURCE) # NEW: Include user sources
 
 # Object files (derived from source files)
 CORE_OBJECTS = $(patsubst $(SRC_DIR)/core/%.c,$(OBJ_DIR)/core/%.o,$(CORE_SOURCES))
@@ -105,13 +107,14 @@ NETWORK_OBJECTS = $(patsubst $(SRC_DIR)/network/%.c,$(OBJ_DIR)/network/%.o,$(NET
 UTILS_OBJECTS = $(patsubst $(SRC_DIR)/utils/%.c,$(OBJ_DIR)/utils/%.o,$(UTILS_SOURCES))
 CLI_OBJECTS = $(patsubst $(SRC_DIR)/cli/%.c,$(OBJ_DIR)/cli/%.o,$(CLI_SOURCES))
 CONFIG_OBJECTS = $(patsubst $(SRC_DIR)/config/%.c,$(OBJ_DIR)/config/%.o,$(CONFIG_SOURCES))
+USER_OBJECTS = $(patsubst $(SRC_DIR)/user/%.c,$(OBJ_DIR)/user/%.o,$(USER_SOURCES)) # NEW: User module objects
 
 MAIN_OBJECT = $(patsubst $(SRC_DIR)/main.c,$(OBJ_DIR)/main.o,$(MAIN_SOURCE))
 
 ALL_OBJECTS = $(CORE_OBJECTS) $(CRYPTO_OBJECTS) $(MINING_OBJECTS) \
-              $(SECURITY_OBJECTS) $(MEDICAL_OBJECTS) $(CONTRACTS_OBJECTS) \
-              $(STORAGE_OBJECTS) $(NETWORK_OBJECTS) $(UTILS_OBJECTS) \
-              $(CLI_OBJECTS) $(CONFIG_OBJECTS) $(MAIN_OBJECT)
+	$(SECURITY_OBJECTS) $(MEDICAL_OBJECTS) $(CONTRACTS_OBJECTS) \
+	$(STORAGE_OBJECTS) $(NETWORK_OBJECTS) $(UTILS_OBJECTS) \
+	$(CLI_OBJECTS) $(CONFIG_OBJECTS) $(USER_OBJECTS) $(MAIN_OBJECT) # NEW: Include user objects
 
 # Test files
 TEST_SOURCES = $(wildcard $(TEST_DIR)/*.c)
@@ -142,7 +145,7 @@ release: clean $(TARGET)
 
 # Create directories
 $(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)/{core,crypto,mining,security,medical,contracts,storage,network,utils,cli,config,test}
+	@mkdir -p $(OBJ_DIR)/{core,crypto,mining,security,medical,contracts,storage,network,utils,cli,config,test,user} # NEW: Add user directory
 
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
